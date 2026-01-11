@@ -10,6 +10,7 @@
 
 import hashlib
 import textwrap
+
 import pytest
 
 from coreason_scribe.inspector import SemanticInspector

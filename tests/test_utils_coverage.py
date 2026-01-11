@@ -20,6 +20,10 @@ def test_logger_mkdir_coverage() -> None:
 
     import coreason_scribe.utils.logger
 
+    # Ensure we close any existing file handlers to avoid Windows permission errors
+    # The logger might have an open file handle to logs/app.log
+    logger.remove()
+
     # Remove logs directory if it exists
     log_path = Path("logs")
     if log_path.exists():

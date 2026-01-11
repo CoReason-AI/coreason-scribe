@@ -90,3 +90,32 @@ def test_signature_block_missing_field() -> None:
             meaning="Approval",
             signature_token="token_xyz",
         )
+
+
+def test_model_serialization_round_trip() -> None:
+    req = Requirement(id="REQ-SERIAL", description="Serialization Test", risk=RiskLevel.MED, source_sop="SOP-JSON")
+    json_str = req.model_dump_json()
+    req_loaded = Requirement.model_validate_json(json_str)
+    assert req_loaded == req
+
+
+def test_empty_string_fields() -> None:
+    # It is technically valid for these strings to be empty unless constrained
+    req = Requirement(id="", description="", risk=RiskLevel.LOW)
+    assert req.id == ""
+    assert req.description == ""
+
+    section = DraftSection(id="", content="", author="HUMAN", is_modified=False, linked_code_hash="")
+    assert section.content == ""
+
+
+def test_explicit_none_optional() -> None:
+    req = Requirement(id="REQ-NONE", description="None test", risk=RiskLevel.MED, source_sop=None)
+    assert req.source_sop is None
+
+
+def test_large_content() -> None:
+    large_text = "A" * 1000000  # 1MB string
+    section = DraftSection(id="sec-large", content=large_text, author="AI", is_modified=False, linked_code_hash="hash")
+    assert len(section.content) == 1000000
+    assert section.content.startswith("AAAA")

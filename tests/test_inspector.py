@@ -107,14 +107,14 @@ def test_missing_docstring_warning(caplog: pytest.LogCaptureFixture) -> None:
     # This means loguru is not propagating to standard logging which caplog captures.
 
     # Instead of caplog, let's use a custom sink for loguru to verify.
-    from loguru import Message
-
     from coreason_scribe.utils.logger import logger
 
     messages = []
 
-    def sink(message: Message) -> None:
-        messages.append(message.record["message"])
+    def sink(message: object) -> None:
+        # message is actually a loguru.Message object but it's not exposed
+        record = getattr(message, "record", {})
+        messages.append(record["message"])
 
     logger_id = logger.add(sink)
     try:

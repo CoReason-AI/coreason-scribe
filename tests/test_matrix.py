@@ -8,8 +8,9 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
+import math
+
 import pytest
-from pydantic import ValidationError
 
 from coreason_scribe.matrix import ComplianceStatus, RiskAnalyzer
 from coreason_scribe.models import Requirement, RiskLevel
@@ -64,19 +65,43 @@ def test_analyze_low_risk_full_coverage() -> None:
 
 
 def test_analyze_over_100_coverage() -> None:
-    # It's possible for coverage tools to report strange numbers or user error
-    # But GapAnalysisResult constrains it to <= 100 via Pydantic Field
     req = Requirement(id="REQ-007", description="UI", risk=RiskLevel.LOW)
-
-    # We expect validation error from Pydantic construction inside the method
-    # Wait, the method constructs GapAnalysisResult.
-    # So if we pass 101.0, it should raise ValidationError.
-
-    with pytest.raises(ValidationError):
+    # We now raise ValueError explicitly
+    with pytest.raises(ValueError, match="must be between 0.0 and 100.0"):
         RiskAnalyzer.analyze_coverage(req, 101.0)
 
 
 def test_analyze_negative_coverage() -> None:
     req = Requirement(id="REQ-008", description="UI", risk=RiskLevel.LOW)
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError, match="must be between 0.0 and 100.0"):
         RiskAnalyzer.analyze_coverage(req, -1.0)
+
+
+def test_analyze_precision_edge_case() -> None:
+    # 99.999999 should NOT pass for high risk
+    req = Requirement(id="REQ-009", description="Precision", risk=RiskLevel.HIGH)
+    val = 99.99999999
+    result = RiskAnalyzer.analyze_coverage(req, val)
+    assert result.status == ComplianceStatus.CRITICAL_GAP
+    assert result.coverage_percentage == val
+
+
+def test_analyze_nan_coverage() -> None:
+    req = Requirement(id="REQ-010", description="NaN", risk=RiskLevel.HIGH)
+    with pytest.raises(ValueError, match="must be a finite number"):
+        RiskAnalyzer.analyze_coverage(req, math.nan)
+
+
+def test_analyze_inf_coverage() -> None:
+    req = Requirement(id="REQ-011", description="Inf", risk=RiskLevel.HIGH)
+    with pytest.raises(ValueError, match="must be a finite number"):
+        RiskAnalyzer.analyze_coverage(req, math.inf)
+
+
+def test_analyze_tiny_coverage() -> None:
+    # Very small positive number
+    req = Requirement(id="REQ-012", description="Tiny", risk=RiskLevel.MED)
+    val = 1e-10
+    result = RiskAnalyzer.analyze_coverage(req, val)
+    assert result.status == ComplianceStatus.WARNING
+    assert result.coverage_percentage == val

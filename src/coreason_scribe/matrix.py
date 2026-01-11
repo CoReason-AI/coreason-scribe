@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
+import math
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -58,12 +59,17 @@ class RiskAnalyzer:
 
         Returns:
             A GapAnalysisResult object containing the status and details.
-        """
-        # Ensure coverage is clamped or valid (Pydantic validates, but we're passing to method)
-        # We assume the caller provides a valid float.
-        # Handle precision issues: 99.999999 should be treated carefully, but requirements say "< 100%".
-        # We'll treat strictly less than 100 as a gap.
 
+        Raises:
+            ValueError: If coverage_percentage is NaN, Infinite, or outside 0-100.
+        """
+        if not math.isfinite(coverage_percentage):
+            raise ValueError(f"Coverage percentage must be a finite number, got {coverage_percentage}")
+
+        if not (0.0 <= coverage_percentage <= 100.0):
+            raise ValueError(f"Coverage percentage must be between 0.0 and 100.0, got {coverage_percentage}")
+
+        # Strict floating point comparison for 100% compliance
         is_fully_covered = coverage_percentage >= 100.0
 
         status: ComplianceStatus

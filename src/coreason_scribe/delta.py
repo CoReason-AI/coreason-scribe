@@ -19,6 +19,17 @@ class SemanticDeltaEngine:
     Compares two DraftArtifacts to identify semantic differences (Logic vs Text).
     """
 
+    def _index_sections(self, sections: List[DraftSection]) -> Dict[str, DraftSection]:
+        """
+        Helper to index sections by ID. Raises ValueError on duplicates.
+        """
+        mapping: Dict[str, DraftSection] = {}
+        for s in sections:
+            if s.id in mapping:
+                raise ValueError(f"Duplicate Section ID found: {s.id}")
+            mapping[s.id] = s
+        return mapping
+
     def compute_delta(self, current: DraftArtifact, previous: DraftArtifact) -> DeltaReport:
         """
         Compares the current draft against a previous version.
@@ -29,12 +40,15 @@ class SemanticDeltaEngine:
 
         Returns:
             A DeltaReport containing all detected changes.
+
+        Raises:
+            ValueError: If either artifact contains duplicate section IDs.
         """
         changes: List[DiffItem] = []
 
         # Index sections by ID for efficient lookup
-        current_map: Dict[str, DraftSection] = {s.id: s for s in current.sections}
-        previous_map: Dict[str, DraftSection] = {s.id: s for s in previous.sections}
+        current_map = self._index_sections(current.sections)
+        previous_map = self._index_sections(previous.sections)
 
         all_ids: Set[str] = set(current_map.keys()) | set(previous_map.keys())
 

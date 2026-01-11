@@ -10,7 +10,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -49,6 +49,50 @@ class DraftSection(BaseModel):
     author: Literal["AI", "HUMAN"]
     is_modified: bool
     linked_code_hash: str
+
+
+class DraftArtifact(BaseModel):
+    """
+    A complete draft document containing all sections and metadata.
+    """
+
+    version: str
+    timestamp: datetime
+    sections: List[DraftSection]
+
+
+class DiffType(str, Enum):
+    """
+    Types of semantic differences between sections.
+    """
+
+    LOGIC_CHANGE = "LOGIC_CHANGE"  # Code hash changed
+    TEXT_CHANGE = "TEXT_CHANGE"  # Documentation text changed
+    BOTH = "BOTH"  # Both code and text changed
+    NEW = "NEW"  # Section added
+    REMOVED = "REMOVED"  # Section removed
+
+
+class DiffItem(BaseModel):
+    """
+    Represents a specific change in a documentation section.
+    """
+
+    section_id: str
+    diff_type: DiffType
+    previous_section: Optional[DraftSection] = None
+    current_section: Optional[DraftSection] = None
+
+
+class DeltaReport(BaseModel):
+    """
+    The result of a comparison between two DraftArtifacts.
+    """
+
+    current_version: str
+    previous_version: str
+    timestamp: datetime
+    changes: List[DiffItem]
 
 
 class SignatureBlock(BaseModel):

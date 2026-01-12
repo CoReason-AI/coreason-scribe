@@ -8,12 +8,16 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
+import json
 import math
 from enum import Enum
+from pathlib import Path
+from typing import List
 
-from pydantic import BaseModel, Field
+import yaml
+from pydantic import BaseModel, Field, ValidationError
 
-from coreason_scribe.models import Requirement, RiskLevel
+from coreason_scribe.models import AssayReport, Requirement, RiskLevel
 
 
 class ComplianceStatus(str, Enum):
@@ -96,3 +100,74 @@ class RiskAnalyzer:
             coverage_percentage=coverage_percentage,
             message=message,
         )
+
+
+class TraceabilityMatrixBuilder:
+    """
+    Ingests Requirements and Assay Results to build the Traceability Matrix.
+    """
+
+    def load_requirements(self, yaml_path: Path) -> List[Requirement]:
+        """
+        Loads requirements from a YAML file.
+
+        Args:
+            yaml_path: Path to the agent.yaml file.
+
+        Returns:
+            A list of Requirement objects.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the file content is invalid or does not match schema.
+        """
+        if not yaml_path.exists():
+            raise FileNotFoundError(f"Requirements file not found: {yaml_path}")
+
+        try:
+            with open(yaml_path, "r") as f:
+                data = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Failed to parse YAML: {e}") from e
+
+        if not isinstance(data, list):
+            raise ValueError("Requirements file must contain a list of requirements")
+
+        requirements = []
+        try:
+            for item in data:
+                requirements.append(Requirement(**item))
+        except ValidationError as e:
+            raise ValueError(f"Invalid requirement schema: {e}") from e
+
+        return requirements
+
+    def load_assay_report(self, json_path: Path) -> AssayReport:
+        """
+        Loads the assay report from a JSON file.
+
+        Args:
+            json_path: Path to the assay_report.json file.
+
+        Returns:
+            An AssayReport object.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the file content is invalid or does not match schema.
+        """
+        if not json_path.exists():
+            raise FileNotFoundError(f"Assay report file not found: {json_path}")
+
+        try:
+            with open(json_path, "r") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse JSON: {e}") from e
+
+        try:
+            report = AssayReport(**data)
+        except ValidationError as e:
+            raise ValueError(f"Invalid assay report schema: {e}") from e
+
+        return report

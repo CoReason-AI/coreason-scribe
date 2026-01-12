@@ -10,9 +10,9 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RiskLevel(str, Enum):
@@ -26,6 +26,26 @@ class Requirement(BaseModel):
     description: str
     risk: RiskLevel
     source_sop: Optional[str] = None  # "SOP-999"
+
+
+class TestStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    SKIPPED = "SKIPPED"
+
+
+class AssayResult(BaseModel):
+    test_id: str
+    status: TestStatus
+    coverage: float = Field(ge=0.0, le=100.0)
+    linked_requirements: List[str] = Field(default_factory=list)
+    timestamp: datetime
+
+
+class AssayReport(BaseModel):
+    id: str
+    timestamp: datetime
+    results: List[AssayResult]
 
 
 class DraftSection(BaseModel):

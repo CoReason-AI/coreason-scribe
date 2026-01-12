@@ -75,7 +75,14 @@ class _InspectorVisitor(ast.NodeVisitor):
             # Handle @trace("REQ-001")
             if isinstance(decorator, ast.Call):
                 func = decorator.func
+                is_trace = False
+
                 if isinstance(func, ast.Name) and func.id == "trace":
+                    is_trace = True
+                elif isinstance(func, ast.Attribute) and func.attr == "trace":
+                    is_trace = True
+
+                if is_trace:
                     for arg in decorator.args:
                         if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                             requirements.append(arg.value)

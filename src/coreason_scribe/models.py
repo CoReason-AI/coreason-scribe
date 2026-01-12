@@ -53,6 +53,7 @@ class DraftSection(BaseModel):
     content: str  # "The safety module checks..."
     author: Literal["AI", "HUMAN"]
     is_modified: bool  # Logic Diff vs Previous Version
+    linked_requirements: List[str] = Field(default_factory=list)
     linked_code_hash: str  # SHA256 of the python source
 
 

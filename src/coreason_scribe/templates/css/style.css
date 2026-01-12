@@ -1,0 +1,93 @@
+@page {
+    size: A4;
+    margin: 2cm;
+    @top-left {
+        content: "CoReason Scribe - SDS";
+        font-size: 9pt;
+        color: #666;
+    }
+    @top-right {
+        content: "Version " string(version);
+        font-size: 9pt;
+        color: #666;
+    }
+    @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        color: #666;
+    }
+}
+
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #333;
+}
+
+h1 {
+    font-size: 18pt;
+    border-bottom: 2px solid #333;
+    padding-bottom: 5px;
+    margin-top: 30px;
+}
+
+h2 {
+    font-size: 14pt;
+    margin-top: 20px;
+}
+
+h3 {
+    font-size: 12pt;
+    color: #555;
+    margin-top: 15px;
+}
+
+.cover-page {
+    text-align: center;
+    padding-top: 200px;
+    break-after: page;
+}
+
+.cover-page h1 {
+    font-size: 32pt;
+    border: none;
+}
+
+.section {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    break-inside: avoid;
+}
+
+.meta {
+    font-size: 9pt;
+    color: #777;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.badge {
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.badge.AI {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.badge.HUMAN {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.warning {
+    color: #d32f2f;
+    font-weight: bold;
+    font-size: 9pt;
+}

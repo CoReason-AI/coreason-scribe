@@ -10,11 +10,32 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Generator
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from coreason_scribe.models import DraftArtifact, DraftSection
 from coreason_scribe.pdf import PDFGenerator
+
+
+@pytest.fixture
+def mock_html_class() -> Generator[MagicMock, None, None]:
+    """Mock the WeasyPrint HTML class to avoid needing system dependencies."""
+    with patch("coreason_scribe.pdf.HTML") as mock:
+        # The mock instance returned by HTML(...)
+        mock_instance = mock.return_value
+
+        # When write_pdf is called, we just create the file to satisfy tests
+        def side_effect(target: Path | str) -> None:
+            if isinstance(target, str):
+                target = Path(target)
+            # Create a fake PDF file
+            with open(target, "wb") as f:
+                f.write(b"%PDF-1.4 mock content")
+
+        mock_instance.write_pdf.side_effect = side_effect
+        yield mock
 
 
 @pytest.fixture
@@ -41,11 +62,15 @@ def sample_artifact() -> DraftArtifact:
     )
 
 
-def test_pdf_generation(tmp_path: Path, sample_artifact: DraftArtifact) -> None:
+def test_pdf_generation(tmp_path: Path, sample_artifact: DraftArtifact, mock_html_class: MagicMock) -> None:
     output_path = tmp_path / "test_sds.pdf"
     generator = PDFGenerator()
     generator.generate_sds(sample_artifact, output_path)
 
+    # Verify HTML was called
+    mock_html_class.assert_called_once()
+
+    # Verify file was "created" by our mock side effect
     assert output_path.exists()
     assert output_path.stat().st_size > 0
     with open(output_path, "rb") as f:
@@ -53,27 +78,22 @@ def test_pdf_generation(tmp_path: Path, sample_artifact: DraftArtifact) -> None:
         assert header == b"%PDF"
 
 
-def test_custom_template_dir(tmp_path: Path) -> None:
+def test_custom_template_dir(tmp_path: Path, mock_html_class: MagicMock) -> None:
     tpl_dir = tmp_path / "templates"
     tpl_dir.mkdir()
     (tpl_dir / "sds.html").write_text("<html><body>{{ artifact.version }}</body></html>")
 
     generator = PDFGenerator(template_dir=tpl_dir)
     assert generator.env.loader is not None
-    # No actual generation needed to verify loader init, but let's test it:
+
     art = DraftArtifact(version="v1", timestamp=datetime.now(), sections=[])
     out = tmp_path / "out.pdf"
     generator.generate_sds(art, out)
     assert out.exists()
 
 
-def test_pdf_escapes_html(tmp_path: Path) -> None:
+def test_pdf_escapes_html(tmp_path: Path, mock_html_class: MagicMock) -> None:
     """Verify that HTML characters in content are escaped."""
-    # We can't easily parse the PDF to check text without a library,
-    # but we can check that generation doesn't crash and maybe check file size.
-    # To truly verify escaping, we'd inspect the intermediate HTML, but PDFGenerator hides it.
-    # For now, we ensure it generates successfully.
-
     artifact = DraftArtifact(
         version="1.0",
         timestamp=datetime.now(timezone.utc),
@@ -89,10 +109,18 @@ def test_pdf_escapes_html(tmp_path: Path) -> None:
     )
     output_path = tmp_path / "escape.pdf"
     PDFGenerator().generate_sds(artifact, output_path)
+
+    # Check that the rendered HTML (passed to HTML constructor) contains escaped content
+    call_args = mock_html_class.call_args
+    # call_args.kwargs['string'] should contain the HTML
+    html_content = call_args.kwargs.get("string", "")
+    assert "&lt;script&gt;" in html_content
+    assert "&lt;/script&gt;" in html_content
+    assert "&amp;" in html_content
     assert output_path.exists()
 
 
-def test_pdf_unicode_content(tmp_path: Path) -> None:
+def test_pdf_unicode_content(tmp_path: Path, mock_html_class: MagicMock) -> None:
     """Verify handling of unicode characters."""
     artifact = DraftArtifact(
         version="1.0",
@@ -108,7 +136,7 @@ def test_pdf_unicode_content(tmp_path: Path) -> None:
     assert output_path.exists()
 
 
-def test_pdf_empty_sections(tmp_path: Path) -> None:
+def test_pdf_empty_sections(tmp_path: Path, mock_html_class: MagicMock) -> None:
     """Verify generation with no sections."""
     artifact = DraftArtifact(version="1.0", timestamp=datetime.now(timezone.utc), sections=[])
     output_path = tmp_path / "empty.pdf"
@@ -116,16 +144,19 @@ def test_pdf_empty_sections(tmp_path: Path) -> None:
     assert output_path.exists()
 
 
-def test_pdf_invalid_output_path(tmp_path: Path, sample_artifact: DraftArtifact) -> None:
+def test_pdf_invalid_output_path(tmp_path: Path, sample_artifact: DraftArtifact, mock_html_class: MagicMock) -> None:
     """Verify error when output directory does not exist."""
-    # invalid_dir/test.pdf where invalid_dir does not exist
+    # We need to disable the side effect for this test or handle it
+    # Because our side effect tries to open the file, it will raise FileNotFoundError correctly
+    # matching the real behavior
+
     output_path = tmp_path / "invalid_dir" / "test.pdf"
 
     with pytest.raises(FileNotFoundError):
         PDFGenerator().generate_sds(sample_artifact, output_path)
 
 
-def test_large_document(tmp_path: Path) -> None:
+def test_large_document(tmp_path: Path, mock_html_class: MagicMock) -> None:
     """Stress test with many sections."""
     sections = [
         DraftSection(
@@ -137,4 +168,3 @@ def test_large_document(tmp_path: Path) -> None:
     output_path = tmp_path / "large.pdf"
     PDFGenerator().generate_sds(artifact, output_path)
     assert output_path.exists()
-    assert output_path.stat().st_size > 1000  # Should be reasonably large

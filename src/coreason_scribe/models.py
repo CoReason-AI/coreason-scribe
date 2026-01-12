@@ -36,6 +36,12 @@ class DraftSection(BaseModel):
     linked_code_hash: str  # SHA256 of the python source
 
 
+class DraftArtifact(BaseModel):
+    version: str
+    timestamp: datetime
+    sections: List[DraftSection]
+
+
 class SignatureBlock(BaseModel):
     document_hash: str  # SHA-256 of the PDF content
     signer_id: str  # User UUID
@@ -43,3 +49,25 @@ class SignatureBlock(BaseModel):
     timestamp: datetime
     meaning: str  # "I certify this design specification."
     signature_token: str  # Cryptographic proof from Identity
+
+
+class DiffType(str, Enum):
+    NEW = "NEW"
+    REMOVED = "REMOVED"
+    LOGIC_CHANGE = "LOGIC_CHANGE"
+    TEXT_CHANGE = "TEXT_CHANGE"
+    BOTH = "BOTH"
+
+
+class DiffItem(BaseModel):
+    section_id: str
+    diff_type: DiffType
+    current_section: Optional[DraftSection]
+    previous_section: Optional[DraftSection]
+
+
+class DeltaReport(BaseModel):
+    current_version: str
+    previous_version: str
+    timestamp: datetime
+    changes: List[DiffItem]

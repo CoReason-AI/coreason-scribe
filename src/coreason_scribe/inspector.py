@@ -66,6 +66,21 @@ class _InspectorVisitor(ast.NodeVisitor):
         # Continue visiting children (e.g. nested functions)
         self.generic_visit(node)
 
+    def _extract_requirements(self, node: ast.AST) -> List[str]:
+        requirements: List[str] = []
+        # Safe access to decorator_list (only present on FunctionDef/ClassDef)
+        decorator_list = getattr(node, "decorator_list", [])
+
+        for decorator in decorator_list:
+            # Handle @trace("REQ-001")
+            if isinstance(decorator, ast.Call):
+                func = decorator.func
+                if isinstance(func, ast.Name) and func.id == "trace":
+                    for arg in decorator.args:
+                        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                            requirements.append(arg.value)
+        return requirements
+
     def _process_node(self, node: ast.AST, name: str) -> None:
         docstring = ast.get_docstring(node)  # type: ignore
         if docstring:
@@ -82,6 +97,8 @@ class _InspectorVisitor(ast.NodeVisitor):
 
         section_id = f"{self.module_name}.{name}"
 
+        linked_reqs = self._extract_requirements(node)
+
         # In a real implementation, we would call coreason-arbitrage here.
         # Since we are falling back to docstrings (which are written by humans),
         # we mark the author as HUMAN.
@@ -93,6 +110,7 @@ class _InspectorVisitor(ast.NodeVisitor):
                 content=content,
                 author=author_type,
                 is_modified=False,
+                linked_requirements=linked_reqs,
                 linked_code_hash=code_hash,
             )
         )

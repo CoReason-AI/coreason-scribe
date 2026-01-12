@@ -14,6 +14,10 @@ import pytest
 from pydantic import ValidationError
 
 from coreason_scribe.models import (
+    DeltaReport,
+    DiffItem,
+    DiffType,
+    DraftArtifact,
     DraftSection,
     Requirement,
     RiskLevel,
@@ -97,3 +101,39 @@ def test_signature_block_invalid_types() -> None:
             meaning="meaning",
             signature_token="token",
         )
+
+
+def test_draft_artifact_valid() -> None:
+    now = datetime.now(timezone.utc)
+    section = DraftSection(id="s1", content="c", author="AI", is_modified=False, linked_code_hash="h")
+    artifact = DraftArtifact(version="1.0", timestamp=now, sections=[section])
+    assert artifact.version == "1.0"
+    assert len(artifact.sections) == 1
+
+
+def test_diff_type_enum() -> None:
+    assert DiffType.NEW == "NEW"
+    assert DiffType.REMOVED == "REMOVED"
+    assert DiffType.LOGIC_CHANGE == "LOGIC_CHANGE"
+    assert DiffType.TEXT_CHANGE == "TEXT_CHANGE"
+    assert DiffType.BOTH == "BOTH"
+
+
+def test_diff_item_valid() -> None:
+    section = DraftSection(id="s1", content="c", author="AI", is_modified=False, linked_code_hash="h")
+    item = DiffItem(
+        section_id="s1",
+        diff_type=DiffType.NEW,
+        current_section=section,
+        previous_section=None,
+    )
+    assert item.diff_type == DiffType.NEW
+    assert item.current_section == section
+    assert item.previous_section is None
+
+
+def test_delta_report_valid() -> None:
+    now = datetime.now(timezone.utc)
+    report = DeltaReport(current_version="1.1", previous_version="1.0", timestamp=now, changes=[])
+    assert report.current_version == "1.1"
+    assert len(report.changes) == 0

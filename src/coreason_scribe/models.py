@@ -10,99 +10,36 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
 
 class RiskLevel(str, Enum):
-    """
-    Risk levels for requirements.
-    HIGH: Patient Safety / GxP
-    MED: Business Logic
-    LOW: UI / Formatting
-    """
-
-    HIGH = "HIGH"
-    MED = "MED"
-    LOW = "LOW"
+    HIGH = "HIGH"  # Patient Safety / GxP
+    MED = "MED"  # Business Logic
+    LOW = "LOW"  # UI / Formatting
 
 
 class Requirement(BaseModel):
-    """
-    A requirement for the system.
-    """
-
-    id: str
+    id: str  # "REQ-001"
     description: str
     risk: RiskLevel
-    source_sop: Optional[str] = None
+    source_sop: Optional[str] = None  # "SOP-999"
 
 
 class DraftSection(BaseModel):
-    """
-    A section of the draft documentation.
-    """
-
-    id: str
-    content: str
+    id: str  # "logic_summary_safety"
+    content: str  # "The safety module checks..."
     author: Literal["AI", "HUMAN"]
-    is_modified: bool
-    linked_code_hash: str
-
-
-class DraftArtifact(BaseModel):
-    """
-    A complete draft document containing all sections and metadata.
-    """
-
-    version: str
-    timestamp: datetime
-    sections: List[DraftSection]
-
-
-class DiffType(str, Enum):
-    """
-    Types of semantic differences between sections.
-    """
-
-    LOGIC_CHANGE = "LOGIC_CHANGE"  # Code hash changed
-    TEXT_CHANGE = "TEXT_CHANGE"  # Documentation text changed
-    BOTH = "BOTH"  # Both code and text changed
-    NEW = "NEW"  # Section added
-    REMOVED = "REMOVED"  # Section removed
-
-
-class DiffItem(BaseModel):
-    """
-    Represents a specific change in a documentation section.
-    """
-
-    section_id: str
-    diff_type: DiffType
-    previous_section: Optional[DraftSection] = None
-    current_section: Optional[DraftSection] = None
-
-
-class DeltaReport(BaseModel):
-    """
-    The result of a comparison between two DraftArtifacts.
-    """
-
-    current_version: str
-    previous_version: str
-    timestamp: datetime
-    changes: List[DiffItem]
+    is_modified: bool  # Logic Diff vs Previous Version
+    linked_code_hash: str  # SHA256 of the python source
 
 
 class SignatureBlock(BaseModel):
-    """
-    A block representing a digital signature.
-    """
-
-    document_hash: str
-    signer_id: str
-    signer_role: str
+    document_hash: str  # SHA-256 of the PDF content
+    signer_id: str  # User UUID
+    signer_role: str  # "Quality_Manager"
     timestamp: datetime
-    meaning: str
-    signature_token: str
+    meaning: str  # "I certify this design specification."
+    signature_token: str  # Cryptographic proof from Identity

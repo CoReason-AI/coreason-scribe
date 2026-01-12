@@ -9,19 +9,14 @@
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
 import sys
-from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_load_initial_conftests(early_config: Any, parser: Any, args: Any) -> None:
-    """
-    Mock weasyprint before any tests are collected or imported.
-    This prevents OSError when system libraries (pango/cairo) are missing.
-    """
-    if "weasyprint" not in sys.modules:
-        mock_weasyprint = MagicMock()
-        mock_weasyprint.HTML = MagicMock()
-        sys.modules["weasyprint"] = mock_weasyprint
+# Mock weasyprint before any tests are collected or imported.
+# This prevents OSError when system libraries (pango/cairo) are missing.
+# Note: We do this at the top level to ensure it runs before any test modules
+# (which might import weasyprint) are imported.
+if "weasyprint" not in sys.modules:
+    mock_weasyprint = MagicMock()
+    # We need to ensure HTML is available on the mock
+    mock_weasyprint.HTML = MagicMock()
+    sys.modules["weasyprint"] = mock_weasyprint

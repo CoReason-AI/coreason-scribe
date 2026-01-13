@@ -36,4 +36,5 @@ def test_trace_decorator_no_args() -> None:
         return True
 
     assert no_op() is True
-    assert no_op._linked_requirements == []  # type: ignore[attr-defined]
+    assert hasattr(no_op, "_linked_requirements")
+    assert no_op._linked_requirements == []

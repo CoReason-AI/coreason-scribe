@@ -47,9 +47,9 @@ def test_inspector_nested_functions() -> None:
     source_code = """
 from coreason_scribe.decorators import trace
 
-@trace("REQ-OUTER")
+@trace("REQ-100")
 def outer():
-    @trace("REQ-INNER")
+    @trace("REQ-101")
     def inner():
         pass
     """
@@ -74,15 +74,15 @@ def outer():
     outer_sec = next(s for s in sections if s.id == "nest.outer")
     inner_sec = next(s for s in sections if s.id == "nest.inner")
 
-    assert outer_sec.linked_requirements == ["REQ-OUTER"]
-    assert inner_sec.linked_requirements == ["REQ-INNER"]
+    assert outer_sec.linked_requirements == ["REQ-100"]
+    assert inner_sec.linked_requirements == ["REQ-101"]
 
 
 def test_inspector_async_function() -> None:
     source_code = """
 from coreason_scribe.decorators import trace
 
-@trace("REQ-ASYNC")
+@trace("REQ-200")
 async def async_worker():
     pass
     """
@@ -91,14 +91,14 @@ async def async_worker():
 
     assert len(sections) == 1
     assert sections[0].id == "async.async_worker"
-    assert sections[0].linked_requirements == ["REQ-ASYNC"]
+    assert sections[0].linked_requirements == ["REQ-200"]
 
 
 def test_inspector_mixed_argument_types() -> None:
     source_code = """
 from coreason_scribe.decorators import trace
 
-@trace("REQ-VALID", 123, None, "REQ-ALSO-VALID")
+@trace("REQ-300", 123, None, "REQ-301")
 def mixed_args():
     pass
     """
@@ -107,4 +107,4 @@ def mixed_args():
 
     assert len(sections) == 1
     # Should only capture the strings
-    assert sections[0].linked_requirements == ["REQ-VALID", "REQ-ALSO-VALID"]
+    assert sections[0].linked_requirements == ["REQ-300", "REQ-301"]

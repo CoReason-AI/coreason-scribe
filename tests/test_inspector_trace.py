@@ -10,7 +10,6 @@
 
 from coreason_scribe.inspector import SemanticInspector
 from coreason_scribe.utils.logger import logger
-import pytest
 
 
 def test_inspector_extracts_trace_decorator() -> None:

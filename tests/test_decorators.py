@@ -25,7 +25,7 @@ def test_trace_decorator_runtime() -> None:
 
     # Check that metadata was attached (implementation detail, but good to verify)
     assert hasattr(add, "_linked_requirements")
-    assert add._linked_requirements == ["REQ-001", "REQ-002"]  # type: ignore[attr-defined]
+    assert add._linked_requirements == ["REQ-001", "REQ-002"]
 
 
 def test_trace_decorator_no_args() -> None:
@@ -36,4 +36,5 @@ def test_trace_decorator_no_args() -> None:
         return True
 
     assert no_op() is True
-    assert no_op._linked_requirements == []  # type: ignore[attr-defined]
+    assert hasattr(no_op, "_linked_requirements")
+    assert no_op._linked_requirements == []

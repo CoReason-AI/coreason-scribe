@@ -37,7 +37,7 @@ def trace(*requirements: str) -> Callable[[F], F]:
         # Attach requirements metadata to the wrapper for runtime inspection if needed
         # We use setattr because the wrapper type (from @wraps) is not easily statically known
         # to have arbitrary attributes
-        wrapper._linked_requirements = list(requirements)  # type: ignore[attr-defined]
+        setattr(wrapper, "_linked_requirements", list(requirements))
         return wrapper  # type: ignore[return-value]
 
     return decorator

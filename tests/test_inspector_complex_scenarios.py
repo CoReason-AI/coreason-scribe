@@ -55,8 +55,8 @@ class MegaController:
     # 2. mega.MegaController.__init__
     # 3. mega.MegaController.status
     # 4. mega.MegaController.process_async
-    # 5. mega.MegaController.inner_helper (Note: current visitor logic flattens nested functions to module level naming if not careful,
-    #    or nests them under class if visited while class is current.
+    # 5. mega.MegaController.inner_helper (Note: current visitor logic flattens nested functions
+    #    to module level naming if not careful, or nests them under class if visited while class is current.
     #    Let's recall the visitor:
     #    visit_FunctionDef sets name = f"{current_class}.{name}" if current_class else name.
     #    It does NOT update current_class for nested functions.

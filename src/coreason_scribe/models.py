@@ -57,10 +57,11 @@ class DraftSection(BaseModel):
     linked_code_hash: str  # SHA256 of the python source
 
 
-class DraftArtifact(BaseModel):
-    version: str
-    timestamp: datetime
-    sections: List[DraftSection]
+class DocumentState(str, Enum):
+    DRAFT = "DRAFT"
+    PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    SIGNED = "SIGNED"
 
 
 class SignatureBlock(BaseModel):
@@ -70,6 +71,14 @@ class SignatureBlock(BaseModel):
     timestamp: datetime
     meaning: str  # "I certify this design specification."
     signature_token: str  # Cryptographic proof from Identity
+
+
+class DraftArtifact(BaseModel):
+    version: str
+    timestamp: datetime
+    sections: List[DraftSection]
+    status: DocumentState = DocumentState.DRAFT
+    signature: Optional[SignatureBlock] = None
 
 
 class DiffType(str, Enum):

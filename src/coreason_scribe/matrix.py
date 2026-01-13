@@ -12,12 +12,19 @@ import json
 import math
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Set
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError
 
-from coreason_scribe.models import AssayReport, Requirement, RiskLevel
+from coreason_scribe.models import (
+    AssayReport,
+    AssayResult,
+    DraftArtifact,
+    Requirement,
+    RiskLevel,
+    TestStatus,
+)
 
 
 class ComplianceStatus(str, Enum):
@@ -171,3 +178,95 @@ class TraceabilityMatrixBuilder:
             raise ValueError(f"Invalid assay report schema: {e}") from e
 
         return report
+
+    def _map_requirements_to_tests(self, assay_report: AssayReport) -> Dict[str, List[AssayResult]]:
+        """
+        Maps Requirement IDs to the list of AssayResults that verify them.
+        """
+        mapping: Dict[str, List[AssayResult]] = {}
+        for result in assay_report.results:
+            for req_id in result.linked_requirements:
+                if req_id not in mapping:
+                    mapping[req_id] = []
+                mapping[req_id].append(result)
+        return mapping
+
+    def _calculate_requirement_coverage(self, linked_results: List[AssayResult]) -> float:
+        """
+        Calculates the aggregate coverage for a requirement based on linked test results.
+        Strategy: Max Coverage.
+        """
+        if not linked_results:
+            return 0.0
+        return max(r.coverage for r in linked_results)
+
+    def generate_mermaid_diagram(
+        self, requirements: List[Requirement], assay_report: AssayReport, draft_artifact: DraftArtifact
+    ) -> str:
+        """
+        Generates a Mermaid.js diagram representing the Traceability Matrix (Code -> Req -> Test).
+
+        Args:
+            requirements: The list of system requirements.
+            assay_report: The test execution report.
+            draft_artifact: The code analysis artifact.
+
+        Returns:
+            A string containing the Mermaid diagram definition.
+        """
+        lines = ["graph TD"]
+
+        # Define styles
+        lines.append("classDef pass fill:#e6fffa,stroke:#00cc99,stroke-width:2px;")
+        lines.append("classDef warning fill:#fff4e6,stroke:#ff9900,stroke-width:2px;")
+        lines.append("classDef criticalGap fill:#ffcccc,stroke:#ff0000,stroke-width:2px;")
+        lines.append("classDef fail fill:#ffcccc,stroke:#ff0000,stroke-width:2px;")
+        lines.append("classDef code fill:#e6f7ff,stroke:#1890ff,stroke-width:1px;")
+        lines.append("classDef default fill:#ffffff,stroke:#000000;")
+
+        # Maps for quick lookup
+        req_to_tests = self._map_requirements_to_tests(assay_report)
+        req_ids = {r.id for r in requirements}
+
+        # 1. Code Nodes (from DraftArtifact)
+        for section in draft_artifact.sections:
+            # Escape section ID for mermaid if needed, but assuming valid ID chars for now
+            # Code nodes link to Requirements
+            node_id = section.id
+            lines.append(f'{node_id}["{section.id}"]:::code')
+            for linked_req in section.linked_requirements:
+                if linked_req in req_ids:
+                    lines.append(f"{node_id} --> {linked_req}")
+
+        # 2. Requirement Nodes
+        for req in requirements:
+            linked_tests = req_to_tests.get(req.id, [])
+            coverage = self._calculate_requirement_coverage(linked_tests)
+            gap_result = RiskAnalyzer.analyze_coverage(req, coverage)
+
+            # Assign style class
+            style_class = "default"
+            if gap_result.status == ComplianceStatus.PASS:
+                style_class = "pass"
+            elif gap_result.status == ComplianceStatus.WARNING:
+                style_class = "warning"
+            elif gap_result.status == ComplianceStatus.CRITICAL_GAP:
+                style_class = "criticalGap"
+
+            lines.append(f'{req.id}["{req.id}<br/>{req.risk.value}"]:::{style_class}')
+
+            # Link Requirement to Tests
+            for test in linked_tests:
+                lines.append(f"{req.id} --> {test.test_id}")
+
+        # 3. Test Nodes
+        # We need to render test nodes only once.
+        # Use a set to track rendered test IDs.
+        rendered_tests: Set[str] = set()
+        for result in assay_report.results:
+            if result.test_id not in rendered_tests:
+                style_class = "pass" if result.status == TestStatus.PASS else "fail"
+                lines.append(f'{result.test_id}["{result.test_id}<br/>{result.status.value}"]:::{style_class}')
+                rendered_tests.add(result.test_id)
+
+        return "\n".join(lines)

@@ -10,6 +10,7 @@
 
 import ast
 import hashlib
+import re
 from typing import List, Literal, Optional
 
 from coreason_scribe.models import DraftSection
@@ -44,6 +45,7 @@ class _InspectorVisitor(ast.NodeVisitor):
         self.module_name = module_name
         self.sections: List[DraftSection] = []
         self.current_class: Optional[str] = None
+        self.req_pattern = re.compile(r"^REQ-\d+$")
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         old_class = self.current_class
@@ -84,8 +86,16 @@ class _InspectorVisitor(ast.NodeVisitor):
 
                 if is_trace:
                     for arg in decorator.args:
+                        # Only accept string constants
                         if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                            requirements.append(arg.value)
+                            req_id = arg.value
+                            if self.req_pattern.match(req_id):
+                                requirements.append(req_id)
+                            else:
+                                logger.warning(f"Invalid Requirement ID format found: {req_id}. Expected 'REQ-\\d+'.")
+                        # Explicitly ignore other types (non-strings) or non-constant nodes
+                        # (e.g., variables passed to @trace are not supported by static analysis)
+
         return requirements
 
     def _process_node(self, node: ast.AST, name: str) -> None:

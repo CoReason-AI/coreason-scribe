@@ -228,18 +228,34 @@ class TraceabilityMatrixBuilder:
         req_to_tests = self._map_requirements_to_tests(assay_report)
         req_ids = {r.id for r in requirements}
 
+        # Safe Node ID Generation
+        # We use internal IDs (e.g., node_1, node_2) to ensure valid Mermaid syntax
+        # regardless of special characters in the actual object IDs.
+        node_id_map: Dict[str, str] = {}
+        node_counter = 0
+
+        def get_node_id(real_id: str) -> str:
+            nonlocal node_counter
+            if real_id not in node_id_map:
+                node_counter += 1
+                node_id_map[real_id] = f"node_{node_counter}"
+            return node_id_map[real_id]
+
         # 1. Code Nodes (from DraftArtifact)
         for section in draft_artifact.sections:
-            # Escape section ID for mermaid if needed, but assuming valid ID chars for now
-            # Code nodes link to Requirements
-            node_id = section.id
-            lines.append(f'{node_id}["{section.id}"]:::code')
+            nid = get_node_id(section.id)
+            # Escape quotes in label if necessary (basic replacement)
+            label = section.id.replace('"', "'")
+            lines.append(f'{nid}["{label}"]:::code')
+
             for linked_req in section.linked_requirements:
                 if linked_req in req_ids:
-                    lines.append(f"{node_id} --> {linked_req}")
+                    req_nid = get_node_id(linked_req)
+                    lines.append(f"{nid} --> {req_nid}")
 
         # 2. Requirement Nodes
         for req in requirements:
+            nid = get_node_id(req.id)
             linked_tests = req_to_tests.get(req.id, [])
             coverage = self._calculate_requirement_coverage(linked_tests)
             gap_result = RiskAnalyzer.analyze_coverage(req, coverage)
@@ -253,20 +269,23 @@ class TraceabilityMatrixBuilder:
             elif gap_result.status == ComplianceStatus.CRITICAL_GAP:
                 style_class = "criticalGap"
 
-            lines.append(f'{req.id}["{req.id}<br/>{req.risk.value}"]:::{style_class}')
+            label = req.id.replace('"', "'")
+            lines.append(f'{nid}["{label}<br/>{req.risk.value}"]:::{style_class}')
 
             # Link Requirement to Tests
             for test in linked_tests:
-                lines.append(f"{req.id} --> {test.test_id}")
+                test_nid = get_node_id(test.test_id)
+                lines.append(f"{nid} --> {test_nid}")
 
         # 3. Test Nodes
         # We need to render test nodes only once.
-        # Use a set to track rendered test IDs.
         rendered_tests: Set[str] = set()
         for result in assay_report.results:
             if result.test_id not in rendered_tests:
+                nid = get_node_id(result.test_id)
                 style_class = "pass" if result.status == TestStatus.PASS else "fail"
-                lines.append(f'{result.test_id}["{result.test_id}<br/>{result.status.value}"]:::{style_class}')
+                label = result.test_id.replace('"', "'")
+                lines.append(f'{nid}["{label}<br/>{result.status.value}"]:::{style_class}')
                 rendered_tests.add(result.test_id)
 
         return "\n".join(lines)

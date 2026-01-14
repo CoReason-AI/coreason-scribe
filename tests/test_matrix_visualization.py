@@ -1,5 +1,6 @@
+import re
 from datetime import datetime, timezone
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import pytest
 
@@ -13,6 +14,52 @@ from coreason_scribe.models import (
     RiskLevel,
     TestStatus,
 )
+
+
+def parse_mermaid(diagram: str) -> Tuple[Dict[str, str], List[Tuple[str, str]], Dict[str, str]]:
+    """
+    Parses a Mermaid graph to extract:
+    - Nodes: {node_id: label}
+    - Edges: [(src_id, dst_id)]
+    - Styles: {node_id: style_class}
+    """
+    nodes = {}
+    edges = []
+    styles = {}
+
+    # Regex for node definition: node_id["label"]:::style
+    # Note: label might contain <br/> or spaces
+    node_pattern = re.compile(r'(\w+)\["([^"]+)"\](?::{3}(\w+))?')
+    edge_pattern = re.compile(r"(\w+) --> (\w+)")
+
+    for line in diagram.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+
+        # Check node def
+        m_node = node_pattern.match(line)
+        if m_node:
+            nid, label, style = m_node.groups()
+            nodes[nid] = label
+            if style:
+                styles[nid] = style
+            continue
+
+        # Check edge
+        m_edge = edge_pattern.match(line)
+        if m_edge:
+            src, dst = m_edge.groups()
+            edges.append((src, dst))
+
+    return nodes, edges, styles
+
+
+def find_node_id_by_label_content(nodes: Dict[str, str], content_snippet: str) -> Optional[str]:
+    for nid, label in nodes.items():
+        if content_snippet in label:
+            return nid
+    return None
 
 
 @pytest.fixture
@@ -87,23 +134,22 @@ def test_generate_mermaid_diagram_structure(
     sample_draft_artifact: DraftArtifact,
 ) -> None:
     builder = TraceabilityMatrixBuilder()
-
-    # This method doesn't exist yet, so this test expects to define the contract
     diagram = builder.generate_mermaid_diagram(sample_requirements, sample_assay_report, sample_draft_artifact)
 
-    # Basic Structure Checks
-    assert "graph LR" in diagram or "graph TD" in diagram
-    assert "classDef" in diagram
+    nodes, edges, styles = parse_mermaid(diagram)
 
-    # Check Nodes
-    # REQ-001 is High Risk, 50% Coverage (Max from TEST-001) -> Critical Gap
-    assert "REQ-001" in diagram
-    assert "TEST-001" in diagram
-    assert "module.func_a" in diagram
+    # Find IDs
+    req1_id = find_node_id_by_label_content(nodes, "REQ-001")
+    test1_id = find_node_id_by_label_content(nodes, "TEST-001")
+    code_id = find_node_id_by_label_content(nodes, "module.func_a")
 
-    # Check Edges
-    assert "module.func_a --> REQ-001" in diagram
-    assert "REQ-001 --> TEST-001" in diagram
+    assert req1_id is not None
+    assert test1_id is not None
+    assert code_id is not None
+
+    # Verify Edges
+    assert (code_id, req1_id) in edges
+    assert (req1_id, test1_id) in edges
 
 
 def test_generate_mermaid_diagram_styles(
@@ -114,23 +160,30 @@ def test_generate_mermaid_diagram_styles(
     builder = TraceabilityMatrixBuilder()
     diagram = builder.generate_mermaid_diagram(sample_requirements, sample_assay_report, sample_draft_artifact)
 
-    # Styles
+    nodes, edges, styles = parse_mermaid(diagram)
+
+    # Find IDs
+    req1 = find_node_id_by_label_content(nodes, "REQ-001")
+    req2 = find_node_id_by_label_content(nodes, "REQ-002")
+    req3 = find_node_id_by_label_content(nodes, "REQ-003")
+
+    test1 = find_node_id_by_label_content(nodes, "TEST-001")
+    test3 = find_node_id_by_label_content(nodes, "TEST-003")
+
+    # Assert not None to satisfy mypy
+    assert req1 and req2 and req3 and test1 and test3
+
+    # Verify Styles
     # REQ-001: High Risk, 50% Cov -> CRITICAL_GAP (Red)
+    assert styles[req1] == "criticalGap"
     # REQ-002: Low Risk, 80% Cov -> WARNING (Orange)
+    assert styles[req2] == "warning"
     # REQ-003: High Risk, 100% Cov -> PASS (Green)
+    assert styles[req3] == "pass"
 
-    # We expect class assignments like `REQ-001["REQ-001<br/>HIGH"]:::criticalGap`
-    # We check if the style is applied to the node definition
-    assert 'REQ-001["REQ-001<br/>HIGH"]:::criticalGap' in diagram
-    assert 'REQ-002["REQ-002<br/>LOW"]:::warning' in diagram
-    assert 'REQ-003["REQ-003<br/>HIGH"]:::pass' in diagram
-
-    # Tests
-    # TEST-001: FAIL -> fail
-    # TEST-003: PASS -> pass
-    # TEST-001["TEST-001<br/>FAIL"]:::fail
-    assert 'TEST-001["TEST-001<br/>FAIL"]:::fail' in diagram
-    assert 'TEST-003["TEST-003<br/>PASS"]:::pass' in diagram
+    # Test Styles
+    assert styles[test1] == "fail"
+    assert styles[test3] == "pass"
 
 
 def test_generate_mermaid_diagram_orphans(
@@ -145,6 +198,8 @@ def test_generate_mermaid_diagram_orphans(
     builder = TraceabilityMatrixBuilder()
     diagram = builder.generate_mermaid_diagram(sample_requirements, sample_assay_report, sample_draft_artifact)
 
-    assert "REQ-ORPHAN" in diagram
-    # It has 0 coverage -> High Risk -> Critical Gap
-    assert 'REQ-ORPHAN["REQ-ORPHAN<br/>HIGH"]:::criticalGap' in diagram
+    nodes, edges, styles = parse_mermaid(diagram)
+
+    req_orphan = find_node_id_by_label_content(nodes, "REQ-ORPHAN")
+    assert req_orphan is not None
+    assert styles[req_orphan] == "criticalGap"

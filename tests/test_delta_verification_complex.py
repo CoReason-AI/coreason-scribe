@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import List
 
 import pytest
+
 from coreason_scribe.delta import SemanticDeltaEngine
 from coreason_scribe.matrix import ComplianceStatus
 from coreason_scribe.models import (
@@ -52,9 +53,7 @@ def create_result(test_id: str, coverage: float, reqs: List[str]) -> AssayResult
     )
 
 
-def test_redundancy_prevents_regression(
-    empty_artifact: DraftArtifact, requirements_complex: List[Requirement]
-) -> None:
+def test_redundancy_prevents_regression(empty_artifact: DraftArtifact, requirements_complex: List[Requirement]) -> None:
     """
     Scenario: REQ-HIGH is covered by Test-A and Test-B.
     Previous: Both Pass.
@@ -88,9 +87,7 @@ def test_redundancy_prevents_regression(
     assert delta.verification_drifts == []
 
 
-def test_shared_test_failure_cascades(
-    empty_artifact: DraftArtifact, requirements_complex: List[Requirement]
-) -> None:
+def test_shared_test_failure_cascades(empty_artifact: DraftArtifact, requirements_complex: List[Requirement]) -> None:
     """
     Scenario: TEST-SHARED covers REQ-HIGH and REQ-MED.
     Previous: TEST-SHARED Passes (100%).
@@ -133,11 +130,10 @@ def test_shared_test_failure_cascades(
     assert drift_med.current_status == ComplianceStatus.WARNING.value
 
 
-def test_total_test_loss(
-    empty_artifact: DraftArtifact, requirements_complex: List[Requirement]
-) -> None:
+def test_total_test_loss(empty_artifact: DraftArtifact, requirements_complex: List[Requirement]) -> None:
     """
-    Scenario: All requirements passed previously. Current report is empty (e.g. CI failure didn't generate report properly but we have empty object).
+    Scenario: All requirements passed previously. Current report is empty.
+    (e.g. CI failure didn't generate report properly but we have empty object).
     Result: All requirements regress.
     """
     prev_results = [
@@ -172,9 +168,7 @@ def test_total_test_loss(
     assert drift_low.current_status == ComplianceStatus.WARNING.value
 
 
-def test_mixed_bag_drift(
-    empty_artifact: DraftArtifact, requirements_complex: List[Requirement]
-) -> None:
+def test_mixed_bag_drift(empty_artifact: DraftArtifact, requirements_complex: List[Requirement]) -> None:
     """
     Scenario:
     REQ-HIGH: PASS -> FAIL (Regression)

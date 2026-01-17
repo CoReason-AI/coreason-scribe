@@ -12,7 +12,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from git import InvalidGitRepositoryError
@@ -268,3 +268,137 @@ def test_run_check_with_changes(tmp_path: Path, capsys: pytest.CaptureFixture[st
 def test_check_file_not_found() -> None:
     with pytest.raises(SystemExit):
         run_check(Path("nonexistent1"), Path("nonexistent2"))
+
+
+# --- New Edge Case Tests ---
+
+
+def test_draft_empty_git_repo_no_commits(
+    mock_repo: MagicMock, mock_inspector: MagicMock, mock_pdf_generator: MagicMock, tmp_path: Path
+) -> None:
+    """Test handling of a git repository with no commits (fresh init)."""
+    source_dir = tmp_path / "src"
+    source_dir.mkdir()
+    (source_dir / "module.py").write_text("def foo(): pass")
+
+    # Simulate ValueError when accessing hexsha
+    type(mock_repo.return_value.head.commit).hexsha = PropertyMock(side_effect=ValueError("Ref not found"))
+    mock_repo.return_value.working_dir = str(tmp_path)
+    mock_repo.return_value.git.ls_files.return_value = "src/module.py"
+
+    output_dir = tmp_path / "output"
+
+    with patch(
+        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+    ):
+        main()
+
+    assert (output_dir / "artifact.json").exists()
+    with open(output_dir / "artifact.json") as f:
+        data = json.load(f)
+        assert data["commit_hash"] is None
+
+
+def test_draft_nested_structure(
+    mock_repo: MagicMock, mock_inspector: MagicMock, mock_pdf_generator: MagicMock, tmp_path: Path
+) -> None:
+    """Test correct module ID generation for nested files."""
+    source_dir = tmp_path / "src"
+    source_dir.mkdir()
+    nested_dir = source_dir / "a" / "b"
+    nested_dir.mkdir(parents=True)
+    (nested_dir / "c.py").write_text("def bar(): pass")
+
+    mock_repo.return_value.working_dir = str(tmp_path)
+    mock_repo.return_value.git.ls_files.return_value = "src/a/b/c.py"
+
+    output_dir = tmp_path / "output"
+
+    # We need the inspector to actually be called with correct module name
+    with patch(
+        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+    ):
+        main()
+
+    # Verify inspector call
+    mock_inspector.return_value.inspect_source.assert_called()
+    # Check the module name argument of the last call
+    args, _ = mock_inspector.return_value.inspect_source.call_args
+    assert args[1] == "a.b.c"
+
+
+def test_draft_unicode_source(
+    mock_repo: MagicMock, mock_inspector: MagicMock, mock_pdf_generator: MagicMock, tmp_path: Path
+) -> None:
+    """Test reading source files with unicode characters."""
+    source_dir = tmp_path / "src"
+    source_dir.mkdir()
+    content = "def emoji():\n    '''🚀'''\n    pass"
+    (source_dir / "unicode.py").write_text(content, encoding="utf-8")
+
+    mock_repo.return_value.working_dir = str(tmp_path)
+    mock_repo.return_value.git.ls_files.return_value = "src/unicode.py"
+
+    output_dir = tmp_path / "output"
+
+    with patch(
+        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+    ):
+        main()
+
+    # Verify content was read correctly
+    args, _ = mock_inspector.return_value.inspect_source.call_args
+    assert args[0] == content
+
+
+def test_check_invalid_json_model(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Test check command with valid JSON that doesn't match the model."""
+    current = tmp_path / "current.json"
+    previous = tmp_path / "previous.json"
+
+    current.write_text('{"version": "1.0", "missing": "fields"}')  # Invalid DraftArtifact
+    previous.write_text('{"version": "1.0", "missing": "fields"}')
+
+    with patch("sys.argv", ["scribe", "check", str(current), str(previous)]):
+        with pytest.raises(SystemExit):
+            main()
+
+
+def test_draft_partial_traceability(
+    mock_repo: MagicMock,
+    mock_inspector: MagicMock,
+    mock_pdf_generator: MagicMock,
+    mock_matrix_builder: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Test that providing only agent-yaml without assay-report (or vice versa) skips generation gracefully."""
+    source_dir = tmp_path / "src"
+    source_dir.mkdir()
+    output_dir = tmp_path / "output"
+    agent_yaml = tmp_path / "agent.yaml"
+    agent_yaml.touch()
+
+    mock_repo.return_value.working_dir = str(tmp_path)
+    mock_repo.return_value.git.ls_files.return_value = "src/module.py"
+
+    with patch(
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--agent-yaml",
+            str(agent_yaml),
+            # Missing --assay-report
+        ],
+    ):
+        main()
+
+    # Should succeed but NOT generate mmd
+    assert (output_dir / "artifact.json").exists()
+    assert not (output_dir / "traceability.mmd").exists()

@@ -64,10 +64,16 @@ def run_draft(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Initialize Git Repo & Get Commit Hash
+    commit_hash: Optional[str] = None
+    tracked_py_files = []
     try:
         repo = Repo(source_dir, search_parent_directories=True)
-        commit_hash = repo.head.commit.hexsha
-        logger.info(f"Detected git commit: {commit_hash}")
+        try:
+            commit_hash = repo.head.commit.hexsha
+            logger.info(f"Detected git commit: {commit_hash}")
+        except ValueError:
+            logger.warning("Git repository detected but no commits found (empty repo).")
+            commit_hash = None
 
         # Get all tracked files (respects .gitignore)
         # ls-files returns paths relative to the repo root
@@ -76,7 +82,6 @@ def run_draft(
         # Filter for Python files and convert to absolute paths
         # We need to handle the case where source_dir is a subdirectory of the repo root
         repo_root = Path(repo.working_dir)
-        tracked_py_files = []
         for file_rel_path in git_files:
             abs_path = repo_root / file_rel_path
             # Check if file is inside our source_dir and is a .py file

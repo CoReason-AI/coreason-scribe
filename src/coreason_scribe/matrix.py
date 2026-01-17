@@ -109,10 +109,62 @@ class RiskAnalyzer:
         )
 
 
+class ComplianceEngine:
+    """
+    Calculates compliance status for requirements based on assay reports.
+    """
+
+    @staticmethod
+    def map_requirements_to_tests(assay_report: AssayReport) -> Dict[str, List[AssayResult]]:
+        """
+        Maps Requirement IDs to the list of AssayResults that verify them.
+        """
+        mapping: Dict[str, List[AssayResult]] = {}
+        for result in assay_report.results:
+            for req_id in result.linked_requirements:
+                if req_id not in mapping:
+                    mapping[req_id] = []
+                mapping[req_id].append(result)
+        return mapping
+
+    @staticmethod
+    def calculate_requirement_coverage(linked_results: List[AssayResult]) -> float:
+        """
+        Calculates the aggregate coverage for a requirement based on linked test results.
+        Strategy: Max Coverage.
+        """
+        if not linked_results:
+            return 0.0
+        return max(r.coverage for r in linked_results)
+
+    def evaluate_compliance(
+        self, requirements: List[Requirement], assay_report: AssayReport
+    ) -> Dict[str, ComplianceStatus]:
+        """
+        Evaluates the compliance status for a list of requirements against an assay report.
+
+        Returns:
+            A dictionary mapping Requirement ID to ComplianceStatus.
+        """
+        req_to_tests = self.map_requirements_to_tests(assay_report)
+        statuses: Dict[str, ComplianceStatus] = {}
+
+        for req in requirements:
+            linked_tests = req_to_tests.get(req.id, [])
+            coverage = self.calculate_requirement_coverage(linked_tests)
+            result = RiskAnalyzer.analyze_coverage(req, coverage)
+            statuses[req.id] = result.status
+
+        return statuses
+
+
 class TraceabilityMatrixBuilder:
     """
     Ingests Requirements and Assay Results to build the Traceability Matrix.
     """
+
+    def __init__(self) -> None:
+        self.compliance_engine = ComplianceEngine()
 
     def load_requirements(self, yaml_path: Path) -> List[Requirement]:
         """
@@ -179,27 +231,6 @@ class TraceabilityMatrixBuilder:
 
         return report
 
-    def _map_requirements_to_tests(self, assay_report: AssayReport) -> Dict[str, List[AssayResult]]:
-        """
-        Maps Requirement IDs to the list of AssayResults that verify them.
-        """
-        mapping: Dict[str, List[AssayResult]] = {}
-        for result in assay_report.results:
-            for req_id in result.linked_requirements:
-                if req_id not in mapping:
-                    mapping[req_id] = []
-                mapping[req_id].append(result)
-        return mapping
-
-    def _calculate_requirement_coverage(self, linked_results: List[AssayResult]) -> float:
-        """
-        Calculates the aggregate coverage for a requirement based on linked test results.
-        Strategy: Max Coverage.
-        """
-        if not linked_results:
-            return 0.0
-        return max(r.coverage for r in linked_results)
-
     def generate_mermaid_diagram(
         self, requirements: List[Requirement], assay_report: AssayReport, draft_artifact: DraftArtifact
     ) -> str:
@@ -225,7 +256,7 @@ class TraceabilityMatrixBuilder:
         lines.append("classDef default fill:#ffffff,stroke:#000000;")
 
         # Maps for quick lookup
-        req_to_tests = self._map_requirements_to_tests(assay_report)
+        req_to_tests = self.compliance_engine.map_requirements_to_tests(assay_report)
         req_ids = {r.id for r in requirements}
 
         # Safe Node ID Generation
@@ -257,7 +288,7 @@ class TraceabilityMatrixBuilder:
         for req in requirements:
             nid = get_node_id(req.id)
             linked_tests = req_to_tests.get(req.id, [])
-            coverage = self._calculate_requirement_coverage(linked_tests)
+            coverage = self.compliance_engine.calculate_requirement_coverage(linked_tests)
             gap_result = RiskAnalyzer.analyze_coverage(req, coverage)
 
             # Assign style class

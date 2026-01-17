@@ -88,6 +88,13 @@ class DiffType(str, Enum):
     LOGIC_CHANGE = "LOGIC_CHANGE"
     TEXT_CHANGE = "TEXT_CHANGE"
     BOTH = "BOTH"
+    VERIFICATION_REGRESSION = "VERIFICATION_REGRESSION"
+
+
+class VerificationDrift(BaseModel):
+    requirement_id: str
+    previous_status: str  # e.g. "PASS"
+    current_status: str  # e.g. "CRITICAL_GAP"
 
 
 class DiffItem(BaseModel):
@@ -102,3 +109,4 @@ class DeltaReport(BaseModel):
     previous_version: str
     timestamp: datetime
     changes: List[DiffItem]
+    verification_drifts: List[VerificationDrift] = Field(default_factory=list)

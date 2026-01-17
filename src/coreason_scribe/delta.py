@@ -11,7 +11,7 @@
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set
 
-from coreason_scribe.matrix import ComplianceStatus, RiskAnalyzer, TraceabilityMatrixBuilder
+from coreason_scribe.matrix import ComplianceEngine, ComplianceStatus
 from coreason_scribe.models import (
     AssayReport,
     DeltaReport,
@@ -153,31 +153,10 @@ class SemanticDeltaEngine:
         """
         Detects regressions in requirement compliance status.
         """
-        matrix_builder = TraceabilityMatrixBuilder()
+        compliance_engine = ComplianceEngine()
 
-        # Helper to get status for all reqs in a report
-        def get_statuses(report: AssayReport) -> Dict[str, ComplianceStatus]:
-            # We must access the private methods of TraceabilityMatrixBuilder
-            # ideally these should be public or static utils.
-            # However, for now we will instantiate and use private methods as per Python conventions if necessary,
-            # but actually _map_requirements_to_tests and _calculate_requirement_coverage are private.
-            # Let's check matrix.py again. They are private.
-            # But the logic is simple enough to replicate or I can subclass or ignore privacy.
-            # For robustness, I'll copy the logic here slightly or invoke them.
-            # Since they are stateless helpers on the instance, I'll use them.
-            # pylint: disable=protected-access
-
-            req_to_tests = matrix_builder._map_requirements_to_tests(report)
-            statuses = {}
-            for req in requirements:
-                linked_tests = req_to_tests.get(req.id, [])
-                coverage = matrix_builder._calculate_requirement_coverage(linked_tests)
-                result = RiskAnalyzer.analyze_coverage(req, coverage)
-                statuses[req.id] = result.status
-            return statuses
-
-        current_statuses = get_statuses(current_report)
-        previous_statuses = get_statuses(previous_report)
+        current_statuses = compliance_engine.evaluate_compliance(requirements, current_report)
+        previous_statuses = compliance_engine.evaluate_compliance(requirements, previous_report)
 
         drifts = []
         for req in requirements:

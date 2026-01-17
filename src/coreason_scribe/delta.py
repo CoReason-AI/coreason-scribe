@@ -9,14 +9,25 @@
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
 from datetime import datetime, timezone
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
-from coreason_scribe.models import DeltaReport, DiffItem, DiffType, DraftArtifact, DraftSection
+from coreason_scribe.matrix import ComplianceStatus, RiskAnalyzer, TraceabilityMatrixBuilder
+from coreason_scribe.models import (
+    AssayReport,
+    DeltaReport,
+    DiffItem,
+    DiffType,
+    DraftArtifact,
+    DraftSection,
+    Requirement,
+    VerificationDrift,
+)
 
 
 class SemanticDeltaEngine:
     """
     Compares two DraftArtifacts to identify semantic differences (Logic vs Text).
+    Also detects Verification Drift if AssayReports are provided.
     """
 
     def _index_sections(self, sections: List[DraftSection]) -> Dict[str, DraftSection]:
@@ -30,13 +41,23 @@ class SemanticDeltaEngine:
             mapping[s.id] = s
         return mapping
 
-    def compute_delta(self, current: DraftArtifact, previous: DraftArtifact) -> DeltaReport:
+    def compute_delta(
+        self,
+        current: DraftArtifact,
+        previous: DraftArtifact,
+        current_report: Optional[AssayReport] = None,
+        previous_report: Optional[AssayReport] = None,
+        requirements: Optional[List[Requirement]] = None,
+    ) -> DeltaReport:
         """
         Compares the current draft against a previous version.
 
         Args:
             current: The current draft artifact.
             previous: The previous draft artifact (e.g., last signed release).
+            current_report: Optional current assay report for verification drift.
+            previous_report: Optional previous assay report for verification drift.
+            requirements: Optional list of requirements for risk analysis.
 
         Returns:
             A DeltaReport containing all detected changes.
@@ -110,9 +131,82 @@ class SemanticDeltaEngine:
                     )
                 # Else: No change, do not append to report
 
+        # Verification Drift Detection
+        verification_drifts: List[VerificationDrift] = []
+        if current_report and previous_report and requirements:
+            verification_drifts = self._detect_verification_drift(current_report, previous_report, requirements)
+
         return DeltaReport(
             current_version=current.version,
             previous_version=previous.version,
             timestamp=datetime.now(timezone.utc),
             changes=changes,
+            verification_drifts=verification_drifts,
         )
+
+    def _detect_verification_drift(
+        self,
+        current_report: AssayReport,
+        previous_report: AssayReport,
+        requirements: List[Requirement],
+    ) -> List[VerificationDrift]:
+        """
+        Detects regressions in requirement compliance status.
+        """
+        matrix_builder = TraceabilityMatrixBuilder()
+
+        # Helper to get status for all reqs in a report
+        def get_statuses(report: AssayReport) -> Dict[str, ComplianceStatus]:
+            # We must access the private methods of TraceabilityMatrixBuilder
+            # ideally these should be public or static utils.
+            # However, for now we will instantiate and use private methods as per Python conventions if necessary,
+            # but actually _map_requirements_to_tests and _calculate_requirement_coverage are private.
+            # Let's check matrix.py again. They are private.
+            # But the logic is simple enough to replicate or I can subclass or ignore privacy.
+            # For robustness, I'll copy the logic here slightly or invoke them.
+            # Since they are stateless helpers on the instance, I'll use them.
+            # pylint: disable=protected-access
+
+            req_to_tests = matrix_builder._map_requirements_to_tests(report)
+            statuses = {}
+            for req in requirements:
+                linked_tests = req_to_tests.get(req.id, [])
+                coverage = matrix_builder._calculate_requirement_coverage(linked_tests)
+                result = RiskAnalyzer.analyze_coverage(req, coverage)
+                statuses[req.id] = result.status
+            return statuses
+
+        current_statuses = get_statuses(current_report)
+        previous_statuses = get_statuses(previous_report)
+
+        drifts = []
+        for req in requirements:
+            # Since we iterate over the same requirements list, both reports will produce a status
+            # (defaulting to 0% coverage if no tests are found).
+            prev = previous_statuses[req.id]
+            curr = current_statuses[req.id]
+
+            # Check for regression:
+            # PASS -> WARNING
+            # PASS -> CRITICAL_GAP
+            # WARNING -> CRITICAL_GAP (Only possible if risk level changes dynamically, preventing here)
+
+            is_regression = False
+            if prev == ComplianceStatus.PASS and curr != ComplianceStatus.PASS:
+                is_regression = True
+            # The transition WARNING -> CRITICAL_GAP is impossible given a static requirement risk level
+            # for the same requirement ID in a single run.
+            # However, we keep the check for semantic completeness and mark it for coverage exclusion.
+            elif prev == ComplianceStatus.WARNING and curr == ComplianceStatus.CRITICAL_GAP:  # pragma: no cover
+                is_regression = True
+
+            if is_regression:
+                drifts.append(
+                    VerificationDrift(
+                        requirement_id=req.id,
+                        previous_status=prev.value,
+                        current_status=curr.value,
+                    )
+                )
+
+        return drifts

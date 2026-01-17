@@ -79,6 +79,7 @@ class DraftArtifact(BaseModel):
     sections: List[DraftSection]
     status: DocumentState = DocumentState.DRAFT
     signature: Optional[SignatureBlock] = None
+    commit_hash: Optional[str] = None
 
 
 class DiffType(str, Enum):

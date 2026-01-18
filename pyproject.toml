@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "coreason_scribe"
-version = "0.1.0"
+version = "0.2.0"
 description = "coreason-scribe"
 authors = ["Gowtham A Rao <gowtham.rao@coreason.ai>"]
 license = "Prosperity-3.0"
@@ -33,7 +33,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "coreason_scribe"
-version = "0.1.0"
+version = "0.2.0"
 description = "coreason-scribe"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -48,9 +48,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CoReason-AI/coreason_scribe"
-Repository = "https://github.com/CoReason-AI/coreason_scribe"
-Documentation = "https://github.com/CoReason-AI/coreason_scribe"
+Homepage = "https://github.com/CoReason-AI/coreason-scribe"
+Repository = "https://github.com/CoReason-AI/coreason-scribe"
+Documentation = "https://github.com/CoReason-AI/coreason-scribe"
 
 [tool.ruff]
 line-length = 120

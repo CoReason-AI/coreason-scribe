@@ -18,7 +18,11 @@ from git import InvalidGitRepositoryError, Repo
 
 from coreason_scribe.delta import SemanticDeltaEngine
 from coreason_scribe.inspector import SemanticInspector
-from coreason_scribe.matrix import TraceabilityMatrixBuilder
+from coreason_scribe.matrix import (
+    ComplianceEngine,
+    ComplianceStatus,
+    TraceabilityMatrixBuilder,
+)
 from coreason_scribe.models import DraftArtifact
 from coreason_scribe.pdf import PDFGenerator
 from coreason_scribe.utils.logger import logger
@@ -36,17 +40,28 @@ def main() -> None:
     draft_parser.add_argument("--agent-yaml", type=Path, help="Path to agent.yaml (requirements)")
     draft_parser.add_argument("--assay-report", type=Path, help="Path to assay_report.json (test results)")
 
-    # Command: check
-    check_parser = subparsers.add_parser("check", help="Check for semantic drift between artifacts")
-    check_parser.add_argument("current", type=Path, help="Path to current artifact.json")
-    check_parser.add_argument("previous", type=Path, help="Path to previous signed artifact.json")
+    # Command: diff (Formerly check)
+    diff_parser = subparsers.add_parser("diff", help="Check for semantic drift between artifacts")
+    diff_parser.add_argument("current", type=Path, help="Path to current artifact.json")
+    diff_parser.add_argument("previous", type=Path, help="Path to previous signed artifact.json")
+
+    # Command: check (New CI/CD Gate)
+    check_parser = subparsers.add_parser("check", help="Verify compliance status (CI/CD Gate)")
+    check_parser.add_argument(
+        "--agent-yaml", type=Path, required=True, help="Path to agent.yaml (requirements)"
+    )
+    check_parser.add_argument(
+        "--assay-report", type=Path, required=True, help="Path to assay_report.json (test results)"
+    )
 
     args = parser.parse_args()
 
     if args.command == "draft":
         run_draft(args.source, args.output, args.version, args.agent_yaml, args.assay_report)
+    elif args.command == "diff":
+        run_diff(args.current, args.previous)
     elif args.command == "check":
-        run_check(args.current, args.previous)
+        run_check(args.agent_yaml, args.assay_report)
     else:
         parser.print_help()
 
@@ -149,7 +164,7 @@ def run_draft(
             logger.error(f"Failed to generate traceability matrix: {e}")
 
 
-def run_check(current_path: Path, previous_path: Path) -> None:
+def run_diff(current_path: Path, previous_path: Path) -> None:
     logger.info("Running semantic check...")
 
     try:
@@ -185,5 +200,33 @@ def run_check(current_path: Path, previous_path: Path) -> None:
             print("  Info: Content text changed.")
 
 
-if __name__ == "__main__":  # pragma: no cover
-    main()
+def run_check(agent_yaml: Path, assay_report: Path) -> None:
+    logger.info("Running compliance verification (CI/CD Gate)...")
+
+    builder = TraceabilityMatrixBuilder()
+    try:
+        requirements = builder.load_requirements(agent_yaml)
+        report = builder.load_assay_report(assay_report)
+    except Exception as e:
+        logger.error(f"Failed to load input files: {e}")
+        sys.exit(1)
+
+    compliance_engine = ComplianceEngine()
+    statuses = compliance_engine.evaluate_compliance(requirements, report)
+
+    critical_gaps = []
+    print("\n--- Compliance Verification Report ---")
+
+    for req in requirements:
+        status = statuses[req.id]
+        print(f"[{status.value}] {req.id} (Risk: {req.risk.value})")
+        if status == ComplianceStatus.CRITICAL_GAP:
+            critical_gaps.append(req.id)
+            print(f"  FAILED: {req.id} is High Risk but has incomplete coverage.")
+
+    if critical_gaps:
+        print(f"\nFATAL: {len(critical_gaps)} Critical Gaps detected.")
+        logger.error("Build failed due to Critical Gaps in compliance.")
+        sys.exit(1)
+    else:
+        print("\nSUCCESS: All critical requirements passed.")

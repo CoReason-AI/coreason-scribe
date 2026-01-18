@@ -17,8 +17,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from git import InvalidGitRepositoryError
 
-from coreason_scribe.main import main, run_check, run_draft
-from coreason_scribe.models import DraftArtifact
+from coreason_scribe.main import main, run_check, run_diff, run_draft
+from coreason_scribe.models import DraftArtifact, Requirement, RiskLevel
 
 
 @pytest.fixture
@@ -208,7 +208,7 @@ def test_draft_traceability_failure(
         main()
 
 
-def test_run_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_run_diff(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     current = tmp_path / "current.json"
     previous = tmp_path / "previous.json"
 
@@ -219,7 +219,7 @@ def test_run_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     current.write_text(a1.model_dump_json())
     previous.write_text(a2.model_dump_json())
 
-    with patch("sys.argv", ["scribe", "check", str(current), str(previous)]):
+    with patch("sys.argv", ["scribe", "diff", str(current), str(previous)]):
         main()
 
     captured = capsys.readouterr()
@@ -227,7 +227,7 @@ def test_run_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert "No semantic changes detected" in captured.out
 
 
-def test_run_check_with_changes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_run_diff_with_changes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     from coreason_scribe.models import DraftSection
 
     s1 = DraftSection(
@@ -256,7 +256,7 @@ def test_run_check_with_changes(tmp_path: Path, capsys: pytest.CaptureFixture[st
     current.write_text(a1.model_dump_json())
     previous.write_text(a2.model_dump_json())
 
-    with patch("sys.argv", ["scribe", "check", str(current), str(previous)]):
+    with patch("sys.argv", ["scribe", "diff", str(current), str(previous)]):
         main()
 
     captured = capsys.readouterr()
@@ -265,9 +265,78 @@ def test_run_check_with_changes(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert "Logic Changed!" in captured.out
 
 
-def test_check_file_not_found() -> None:
+def test_diff_file_not_found() -> None:
     with pytest.raises(SystemExit):
-        run_check(Path("nonexistent1"), Path("nonexistent2"))
+        run_diff(Path("nonexistent1"), Path("nonexistent2"))
+
+
+# --- New Check (Gate) Tests ---
+
+
+def test_check_passes(tmp_path: Path, mock_matrix_builder: MagicMock, capsys: pytest.CaptureFixture[str]) -> None:
+    agent_yaml = tmp_path / "agent.yaml"
+    assay_report = tmp_path / "report.json"
+    agent_yaml.touch()
+    assay_report.touch()
+
+    # Mock behavior: 1 High Risk Req, 100% coverage
+    req = Requirement(id="REQ-001", description="Safety", risk=RiskLevel.HIGH)
+    mock_matrix_builder.return_value.load_requirements.return_value = [req]
+    mock_matrix_builder.return_value.load_assay_report.return_value = MagicMock()
+
+    # We need to mock ComplianceEngine used inside run_check.
+    # But run_check instantiates ComplianceEngine directly.
+    # We can rely on matrix.ComplianceEngine logic or mock it.
+    # Let's mock evaluate_compliance return value via patching ComplianceEngine.
+    with patch("coreason_scribe.main.ComplianceEngine") as MockEngine:
+        from coreason_scribe.matrix import ComplianceStatus
+
+        MockEngine.return_value.evaluate_compliance.return_value = {"REQ-001": ComplianceStatus.PASS}
+
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]):
+            main()
+
+    captured = capsys.readouterr()
+    assert "SUCCESS" in captured.out
+    assert "[PASS] REQ-001" in captured.out
+
+
+def test_check_fails_critical_gap(
+    tmp_path: Path, mock_matrix_builder: MagicMock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    agent_yaml = tmp_path / "agent.yaml"
+    assay_report = tmp_path / "report.json"
+    agent_yaml.touch()
+    assay_report.touch()
+
+    req = Requirement(id="REQ-001", description="Safety", risk=RiskLevel.HIGH)
+    mock_matrix_builder.return_value.load_requirements.return_value = [req]
+
+    with patch("coreason_scribe.main.ComplianceEngine") as MockEngine:
+        from coreason_scribe.matrix import ComplianceStatus
+
+        MockEngine.return_value.evaluate_compliance.return_value = {"REQ-001": ComplianceStatus.CRITICAL_GAP}
+
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]):
+            with pytest.raises(SystemExit) as e:
+                main()
+            assert e.value.code == 1
+
+    captured = capsys.readouterr()
+    assert "FATAL" in captured.out
+    assert "CRITICAL_GAP" in captured.out
+
+
+def test_check_invalid_files(tmp_path: Path, mock_matrix_builder: MagicMock) -> None:
+    agent_yaml = tmp_path / "agent.yaml"
+    assay_report = tmp_path / "report.json"
+
+    mock_matrix_builder.return_value.load_requirements.side_effect = Exception("Bad YAML")
+
+    with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]):
+        with pytest.raises(SystemExit) as e:
+            main()
+        assert e.value.code == 1
 
 
 # --- New Edge Case Tests ---
@@ -352,14 +421,14 @@ def test_draft_unicode_source(
 
 
 def test_check_invalid_json_model(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test check command with valid JSON that doesn't match the model."""
+    """Test diff command with valid JSON that doesn't match the model."""
     current = tmp_path / "current.json"
     previous = tmp_path / "previous.json"
 
     current.write_text('{"version": "1.0", "missing": "fields"}')  # Invalid DraftArtifact
     previous.write_text('{"version": "1.0", "missing": "fields"}')
 
-    with patch("sys.argv", ["scribe", "check", str(current), str(previous)]):
+    with patch("sys.argv", ["scribe", "diff", str(current), str(previous)]):
         with pytest.raises(SystemExit):
             main()
 

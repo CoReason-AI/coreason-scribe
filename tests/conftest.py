@@ -9,10 +9,10 @@
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
 import sys
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Generator, List
+from typing import Callable, Generator, List, Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,7 +31,9 @@ if "weasyprint" not in sys.modules:
 
 
 @pytest.fixture
-def mock_traceability_context():
+def mock_traceability_context() -> Callable[
+    [Path, List[Requirement], List[AssayResult]], AbstractContextManager[Tuple[Path, Path]]
+]:
     """
     Returns a context manager that mocks the TraceabilityMatrixBuilder
     to return specific requirements and assay results.
@@ -40,7 +42,7 @@ def mock_traceability_context():
     @contextmanager
     def _context(
         tmp_path: Path, requirements: List[Requirement], assay_results: List[AssayResult]
-    ) -> Generator[tuple[Path, Path], None, None]:
+    ) -> Generator[Tuple[Path, Path], None, None]:
         agent_yaml = tmp_path / "agent.yaml"
         assay_report_path = tmp_path / "report.json"
         agent_yaml.touch()

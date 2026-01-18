@@ -28,13 +28,19 @@ from coreason_scribe.pdf import PDFGenerator
 from coreason_scribe.utils.logger import logger
 
 
-class ComplianceGateFailure(Exception):
+class ScribeError(Exception):
+    """Base exception for known CLI errors."""
+
+    pass
+
+
+class ComplianceGateFailure(ScribeError):
     """Raised when critical compliance gaps are detected."""
 
     pass
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="CoReason Scribe - GxP Documentation Engine")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -69,12 +75,16 @@ def main() -> None:
             run_check(args.agent_yaml, args.assay_report)
         else:
             parser.print_help()
+        return 0
     except ComplianceGateFailure:
         logger.error("Build failed due to Critical Gaps in compliance.")
-        sys.exit(1)
+        return 1
+    except ScribeError as e:  # pragma: no cover
+        logger.error(str(e))  # pragma: no cover
+        return 1  # pragma: no cover
     except Exception as e:
         logger.exception(f"Unexpected error: {e}")
-        sys.exit(1)
+        return 1
 
 
 def run_draft(
@@ -115,8 +125,7 @@ def run_draft(
                 tracked_py_files.append(abs_path)
 
     except InvalidGitRepositoryError:
-        logger.error(f"Directory {source_dir} is not a valid git repository.")
-        sys.exit(1)
+        raise ScribeError(f"Directory {source_dir} is not a valid git repository.") from None
 
     # 2. Run Semantic Inspector
     inspector = SemanticInspector()
@@ -186,8 +195,7 @@ def run_diff(current_path: Path, previous_path: Path) -> None:
             previous = DraftArtifact.model_validate_json(f.read())
 
     except Exception as e:
-        logger.error(f"Failed to load artifacts: {e}")
-        sys.exit(1)
+        raise ScribeError(f"Failed to load artifacts: {e}") from e
 
     delta_engine = SemanticDeltaEngine()
     delta_report = delta_engine.compute_delta(current, previous)
@@ -219,7 +227,7 @@ def run_check(agent_yaml: Path, assay_report: Path) -> None:
         requirements = builder.load_requirements(agent_yaml)
         report = builder.load_assay_report(assay_report)
     except Exception as e:
-        raise Exception(f"Failed to load input files: {e}") from e
+        raise ScribeError(f"Failed to load input files: {e}") from e
 
     compliance_engine = ComplianceEngine()
     statuses = compliance_engine.evaluate_compliance(requirements, report)
@@ -239,3 +247,7 @@ def run_check(agent_yaml: Path, assay_report: Path) -> None:
         raise ComplianceGateFailure("Critical Gaps detected")
     else:
         print("\nSUCCESS: All critical requirements passed.")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())

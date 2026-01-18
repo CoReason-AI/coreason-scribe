@@ -2,7 +2,13 @@
 
 coreason-scribe
 
-[![CI](https://github.com/CoReason-AI/coreason_scribe/actions/workflows/ci.yml/badge.svg)](https://github.com/CoReason-AI/coreason_scribe/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/CoReason-AI/coreason_scribe/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/CoReason-AI/coreason_scribe/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/CoReason-AI/coreason_scribe/graph/badge.svg)](https://codecov.io/gh/CoReason-AI/coreason_scribe)
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
 ## Getting Started
 

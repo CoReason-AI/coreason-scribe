@@ -20,10 +20,10 @@ from pydantic import BaseModel, Field, ValidationError
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     Requirement,
     RiskLevel,
-    TestStatus,
 )
 
 
@@ -314,7 +314,7 @@ class TraceabilityMatrixBuilder:
         for result in assay_report.results:
             if result.test_id not in rendered_tests:
                 nid = get_node_id(result.test_id)
-                style_class = "pass" if result.status == TestStatus.PASS else "fail"
+                style_class = "pass" if result.status == AssayStatus.PASS else "fail"
                 label = result.test_id.replace('"', "'")
                 lines.append(f'{nid}["{label}<br/>{result.status.value}"]:::{style_class}')
                 rendered_tests.add(result.test_id)

@@ -8,11 +8,11 @@ from coreason_scribe.matrix import TraceabilityMatrixBuilder
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     DraftSection,
     Requirement,
     RiskLevel,
-    TestStatus,
 )
 
 
@@ -79,21 +79,21 @@ def sample_assay_report() -> AssayReport:
         results=[
             AssayResult(
                 test_id="TEST-001",
-                status=TestStatus.FAIL,
+                status=AssayStatus.FAIL,
                 coverage=50.0,
                 linked_requirements=["REQ-001"],
                 timestamp=datetime.now(timezone.utc),
             ),
             AssayResult(
                 test_id="TEST-002",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=80.0,
                 linked_requirements=["REQ-002"],
                 timestamp=datetime.now(timezone.utc),
             ),
             AssayResult(
                 test_id="TEST-003",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["REQ-003"],
                 timestamp=datetime.now(timezone.utc),

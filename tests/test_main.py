@@ -23,7 +23,7 @@ from coreason_scribe.models import (
     DraftArtifact,
     Requirement,
     RiskLevel,
-    TestStatus,
+    AssayStatus,
 )
 
 
@@ -334,7 +334,7 @@ def test_check_passes(
     # 100% Coverage Result
     result = AssayResult(
         test_id="T1",
-        status=TestStatus.PASS,
+        status=AssayStatus.PASS,
         coverage=100.0,
         linked_requirements=["REQ-001"],
         timestamp=datetime.now(),
@@ -357,7 +357,7 @@ def test_check_fails_critical_gap(
     # 50% Coverage Result (Critical Gap)
     result = AssayResult(
         test_id="T1",
-        status=TestStatus.PASS,
+        status=AssayStatus.PASS,
         coverage=50.0,
         linked_requirements=["REQ-001"],
         timestamp=datetime.now(),
@@ -380,7 +380,7 @@ def test_check_fails_critical_gap_via_main_exception(
     # 50% Coverage Result (Critical Gap)
     result = AssayResult(
         test_id="T1",
-        status=TestStatus.PASS,
+        status=AssayStatus.PASS,
         coverage=50.0,
         linked_requirements=["REQ-001"],
         timestamp=datetime.now(),

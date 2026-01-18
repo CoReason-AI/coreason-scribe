@@ -12,14 +12,11 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock weasyprint before any tests are collected or imported.
-# This prevents OSError when system libraries (pango/cairo) are missing.
-# Note: We do this at the very top to ensure it runs before any imports
-# from coreason_scribe, which might transitively import weasyprint.
-if "weasyprint" not in sys.modules:
-    mock_weasyprint = MagicMock()
-    # We need to ensure HTML is available on the mock
-    mock_weasyprint.HTML = MagicMock()
-    sys.modules["weasyprint"] = mock_weasyprint
+# We unconditionally mock it to ensure the real library (which requires system DLLs)
+# is never loaded during tests, preventing OSError in CI environments.
+mock_weasyprint = MagicMock()
+mock_weasyprint.HTML = MagicMock()
+sys.modules["weasyprint"] = mock_weasyprint
 
 from contextlib import AbstractContextManager, contextmanager
 from datetime import datetime

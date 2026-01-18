@@ -18,7 +18,7 @@ from coreason_scribe.models import (
     DraftSection,
     Requirement,
     RiskLevel,
-    TestStatus,
+    AssayStatus,
 )
 
 
@@ -45,7 +45,7 @@ def test_generate_mermaid_complex_graph() -> None:
             # REQ-001: High Risk, 100% Coverage -> PASS
             AssayResult(
                 test_id="test_safety_logic",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["REQ-001"],
                 timestamp=datetime.now(timezone.utc),
@@ -53,7 +53,7 @@ def test_generate_mermaid_complex_graph() -> None:
             # REQ-002: Med Risk, 80% Coverage -> WARNING
             AssayResult(
                 test_id="test_business_rule_partial",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=80.0,
                 linked_requirements=["REQ-002"],
                 timestamp=datetime.now(timezone.utc),
@@ -62,7 +62,7 @@ def test_generate_mermaid_complex_graph() -> None:
             # (fail doesn't mean 0 coverage necessarily, but let's say 0 here)
             AssayResult(
                 test_id="test_ui_broken",
-                status=TestStatus.FAIL,
+                status=AssayStatus.FAIL,
                 coverage=0.0,
                 linked_requirements=["REQ-003"],
                 timestamp=datetime.now(timezone.utc),

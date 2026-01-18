@@ -15,7 +15,7 @@ import pytest
 import yaml
 
 from coreason_scribe.matrix import TraceabilityMatrixBuilder
-from coreason_scribe.models import RiskLevel, TestStatus
+from coreason_scribe.models import RiskLevel, AssayStatus
 
 
 @pytest.fixture
@@ -96,7 +96,7 @@ def test_load_assay_report_success(builder: TraceabilityMatrixBuilder, tmp_path:
     assert report.id == "REPORT-001"
     assert len(report.results) == 1
     assert report.results[0].test_id == "TEST-01"
-    assert report.results[0].status == TestStatus.PASS
+    assert report.results[0].status == AssayStatus.PASS
 
 
 def test_load_assay_report_file_not_found(builder: TraceabilityMatrixBuilder) -> None:

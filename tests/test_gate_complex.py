@@ -20,7 +20,7 @@ from coreason_scribe.models import (
     AssayResult,
     Requirement,
     RiskLevel,
-    TestStatus,
+    AssayStatus,
 )
 
 
@@ -70,14 +70,14 @@ def test_gate_mixed_risks(
     results = [
         AssayResult(
             test_id="T1",
-            status=TestStatus.PASS,
+            status=AssayStatus.PASS,
             coverage=100.0,
             linked_requirements=["REQ-HIGH"],
             timestamp=datetime.now(),
         ),
         AssayResult(
             test_id="T2",
-            status=TestStatus.PASS,
+            status=AssayStatus.PASS,
             coverage=50.0,
             linked_requirements=["REQ-MED"],
             timestamp=datetime.now(),
@@ -107,7 +107,7 @@ def test_gate_multiple_critical_gaps(
     results = [
         AssayResult(
             test_id="T1",
-            status=TestStatus.PASS,
+            status=AssayStatus.PASS,
             coverage=90.0,
             linked_requirements=["REQ-H1"],
             timestamp=datetime.now(),
@@ -132,7 +132,7 @@ def test_gate_boundary_coverage(
     results = [
         AssayResult(
             test_id="T1",
-            status=TestStatus.PASS,
+            status=AssayStatus.PASS,
             coverage=99.99,
             linked_requirements=["REQ-H1"],
             timestamp=datetime.now(),
@@ -156,7 +156,7 @@ def test_gate_orphaned_tests(
         # T1 links to phantom requirement
         AssayResult(
             test_id="T1",
-            status=TestStatus.PASS,
+            status=AssayStatus.PASS,
             coverage=100.0,
             linked_requirements=["REQ-999"],
             timestamp=datetime.now(),
@@ -164,7 +164,7 @@ def test_gate_orphaned_tests(
         # T2 links to real requirement
         AssayResult(
             test_id="T2",
-            status=TestStatus.PASS,
+            status=AssayStatus.PASS,
             coverage=100.0,
             linked_requirements=["REQ-001"],
             timestamp=datetime.now(),

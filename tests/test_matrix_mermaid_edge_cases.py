@@ -18,7 +18,7 @@ from coreason_scribe.models import (
     DraftSection,
     Requirement,
     RiskLevel,
-    TestStatus,
+    AssayStatus,
 )
 
 
@@ -66,7 +66,7 @@ def test_mermaid_special_characters() -> None:
         results=[
             AssayResult(
                 test_id="test:subtest(1)",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["REQ(A):1"],
                 timestamp=datetime.now(timezone.utc),
@@ -123,14 +123,14 @@ def test_mermaid_disconnected_and_orphaned_nodes() -> None:
         results=[
             AssayResult(
                 test_id="test_orphan",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["REQ-NONEXISTENT"],  # Linked to unknown req
                 timestamp=datetime.now(timezone.utc),
             ),
             AssayResult(
                 test_id="test_linked",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["REQ-TESTED"],
                 timestamp=datetime.now(timezone.utc),
@@ -194,7 +194,7 @@ def test_mermaid_many_to_many() -> None:
         results=[
             AssayResult(
                 test_id="T1",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["R1", "R2"],
                 timestamp=datetime.now(timezone.utc),

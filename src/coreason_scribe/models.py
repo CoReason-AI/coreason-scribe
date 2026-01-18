@@ -28,7 +28,7 @@ class Requirement(BaseModel):
     source_sop: Optional[str] = None  # "SOP-999"
 
 
-class TestStatus(str, Enum):
+class AssayStatus(str, Enum):
     PASS = "PASS"
     FAIL = "FAIL"
     SKIPPED = "SKIPPED"
@@ -36,7 +36,7 @@ class TestStatus(str, Enum):
 
 class AssayResult(BaseModel):
     test_id: str
-    status: TestStatus
+    status: AssayStatus
     coverage: float = Field(ge=0.0, le=100.0)
     linked_requirements: List[str] = Field(default_factory=list)
     timestamp: datetime

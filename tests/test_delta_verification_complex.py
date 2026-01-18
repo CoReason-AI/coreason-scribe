@@ -18,10 +18,10 @@ from coreason_scribe.matrix import ComplianceStatus
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     Requirement,
     RiskLevel,
-    TestStatus,
 )
 
 
@@ -46,7 +46,7 @@ def requirements_complex() -> List[Requirement]:
 def create_result(test_id: str, coverage: float, reqs: List[str]) -> AssayResult:
     return AssayResult(
         test_id=test_id,
-        status=TestStatus.PASS if coverage >= 100.0 else TestStatus.FAIL,
+        status=AssayStatus.PASS if coverage >= 100.0 else AssayStatus.FAIL,
         coverage=coverage,
         linked_requirements=reqs,
         timestamp=datetime.now(),

@@ -15,7 +15,7 @@ import pytest
 import yaml
 
 from coreason_scribe.matrix import TraceabilityMatrixBuilder
-from coreason_scribe.models import RiskLevel, AssayStatus
+from coreason_scribe.models import AssayStatus, RiskLevel
 
 
 @pytest.fixture

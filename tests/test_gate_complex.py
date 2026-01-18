@@ -18,9 +18,9 @@ import pytest
 from coreason_scribe.main import main
 from coreason_scribe.models import (
     AssayResult,
+    AssayStatus,
     Requirement,
     RiskLevel,
-    AssayStatus,
 )
 
 

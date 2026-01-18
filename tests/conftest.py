@@ -18,15 +18,15 @@ mock_weasyprint = MagicMock()
 mock_weasyprint.HTML = MagicMock()
 sys.modules["weasyprint"] = mock_weasyprint
 
-from contextlib import AbstractContextManager, contextmanager
-from datetime import datetime
-from pathlib import Path
-from typing import Callable, Generator, List, Tuple
-from unittest.mock import patch
+from contextlib import AbstractContextManager, contextmanager  # noqa: E402
+from datetime import datetime  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Callable, Generator, List, Tuple  # noqa: E402
+from unittest.mock import patch  # noqa: E402
 
-import pytest
+import pytest  # noqa: E402
 
-from coreason_scribe.models import AssayReport, AssayResult, Requirement
+from coreason_scribe.models import AssayReport, AssayResult, Requirement  # noqa: E402
 
 
 @pytest.fixture

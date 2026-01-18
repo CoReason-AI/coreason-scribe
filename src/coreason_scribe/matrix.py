@@ -20,10 +20,10 @@ from pydantic import BaseModel, Field, ValidationError
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     Requirement,
     RiskLevel,
-    AssayStatus,
 )
 
 

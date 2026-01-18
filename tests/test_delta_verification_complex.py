@@ -18,10 +18,10 @@ from coreason_scribe.matrix import ComplianceStatus
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     Requirement,
     RiskLevel,
-    AssayStatus,
 )
 
 

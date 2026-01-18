@@ -11,9 +11,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from coreason_scribe.main import ScribeError, main, run_check, run_diff
+from coreason_scribe.main import main
 
 
 def test_check_malformed_requirements(tmp_path: Path) -> None:

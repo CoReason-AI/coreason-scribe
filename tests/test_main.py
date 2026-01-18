@@ -20,10 +20,10 @@ from git import InvalidGitRepositoryError
 from coreason_scribe.main import ScribeError, main, run_diff, run_draft
 from coreason_scribe.models import (
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     Requirement,
     RiskLevel,
-    AssayStatus,
 )
 
 

@@ -14,11 +14,11 @@ from coreason_scribe.matrix import TraceabilityMatrixBuilder
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     DraftSection,
     Requirement,
     RiskLevel,
-    AssayStatus,
 )
 
 

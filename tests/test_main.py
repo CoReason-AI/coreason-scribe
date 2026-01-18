@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from git import InvalidGitRepositoryError
 
-from coreason_scribe.main import main, run_check, run_diff, run_draft
+from coreason_scribe.main import main, run_diff, run_draft
 from coreason_scribe.models import DraftArtifact, Requirement, RiskLevel
 
 
@@ -293,7 +293,9 @@ def test_check_passes(tmp_path: Path, mock_matrix_builder: MagicMock, capsys: py
 
         MockEngine.return_value.evaluate_compliance.return_value = {"REQ-001": ComplianceStatus.PASS}
 
-        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]):
+        with patch(
+            "sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]
+        ):
             main()
 
     captured = capsys.readouterr()
@@ -317,7 +319,9 @@ def test_check_fails_critical_gap(
 
         MockEngine.return_value.evaluate_compliance.return_value = {"REQ-001": ComplianceStatus.CRITICAL_GAP}
 
-        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]):
+        with patch(
+            "sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]
+        ):
             with pytest.raises(SystemExit) as e:
                 main()
             assert e.value.code == 1

@@ -47,9 +47,7 @@ def main() -> None:
 
     # Command: check (New CI/CD Gate)
     check_parser = subparsers.add_parser("check", help="Verify compliance status (CI/CD Gate)")
-    check_parser.add_argument(
-        "--agent-yaml", type=Path, required=True, help="Path to agent.yaml (requirements)"
-    )
+    check_parser.add_argument("--agent-yaml", type=Path, required=True, help="Path to agent.yaml (requirements)")
     check_parser.add_argument(
         "--assay-report", type=Path, required=True, help="Path to assay_report.json (test results)"
     )

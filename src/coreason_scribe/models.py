@@ -10,55 +10,103 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RiskLevel(str, Enum):
-    """
-    Risk levels for requirements.
-    HIGH: Patient Safety / GxP
-    MED: Business Logic
-    LOW: UI / Formatting
-    """
-
-    HIGH = "HIGH"
-    MED = "MED"
-    LOW = "LOW"
+    HIGH = "HIGH"  # Patient Safety / GxP
+    MED = "MED"  # Business Logic
+    LOW = "LOW"  # UI / Formatting
 
 
 class Requirement(BaseModel):
-    """
-    A requirement for the system.
-    """
-
-    id: str
+    id: str  # "REQ-001"
     description: str
     risk: RiskLevel
-    source_sop: Optional[str] = None
+    source_sop: Optional[str] = None  # "SOP-999"
+
+
+class AssayStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    SKIPPED = "SKIPPED"
+
+
+class AssayResult(BaseModel):
+    test_id: str
+    status: AssayStatus
+    coverage: float = Field(ge=0.0, le=100.0)
+    linked_requirements: List[str] = Field(default_factory=list)
+    timestamp: datetime
+
+
+class AssayReport(BaseModel):
+    id: str
+    timestamp: datetime
+    results: List[AssayResult]
 
 
 class DraftSection(BaseModel):
-    """
-    A section of the draft documentation.
-    """
-
-    id: str
-    content: str
+    id: str  # "logic_summary_safety"
+    content: str  # "The safety module checks..."
     author: Literal["AI", "HUMAN"]
-    is_modified: bool
-    linked_code_hash: str
+    is_modified: bool  # Logic Diff vs Previous Version
+    linked_requirements: List[str] = Field(default_factory=list)
+    linked_code_hash: str  # SHA256 of the python source
+
+
+class DocumentState(str, Enum):
+    DRAFT = "DRAFT"
+    PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    SIGNED = "SIGNED"
 
 
 class SignatureBlock(BaseModel):
-    """
-    A block representing a digital signature.
-    """
-
-    document_hash: str
-    signer_id: str
-    signer_role: str
+    document_hash: str  # SHA-256 of the PDF content
+    signer_id: str  # User UUID
+    signer_role: str  # "Quality_Manager"
     timestamp: datetime
-    meaning: str
-    signature_token: str
+    meaning: str  # "I certify this design specification."
+    signature_token: str  # Cryptographic proof from Identity
+
+
+class DraftArtifact(BaseModel):
+    version: str
+    timestamp: datetime
+    sections: List[DraftSection]
+    status: DocumentState = DocumentState.DRAFT
+    signature: Optional[SignatureBlock] = None
+    commit_hash: Optional[str] = None
+
+
+class DiffType(str, Enum):
+    NEW = "NEW"
+    REMOVED = "REMOVED"
+    LOGIC_CHANGE = "LOGIC_CHANGE"
+    TEXT_CHANGE = "TEXT_CHANGE"
+    BOTH = "BOTH"
+    VERIFICATION_REGRESSION = "VERIFICATION_REGRESSION"
+
+
+class VerificationDrift(BaseModel):
+    requirement_id: str
+    previous_status: str  # e.g. "PASS"
+    current_status: str  # e.g. "CRITICAL_GAP"
+
+
+class DiffItem(BaseModel):
+    section_id: str
+    diff_type: DiffType
+    current_section: Optional[DraftSection]
+    previous_section: Optional[DraftSection]
+
+
+class DeltaReport(BaseModel):
+    current_version: str
+    previous_version: str
+    timestamp: datetime
+    changes: List[DiffItem]
+    verification_drifts: List[VerificationDrift] = Field(default_factory=list)

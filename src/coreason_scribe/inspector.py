@@ -10,6 +10,7 @@
 
 import ast
 import hashlib
+import re
 from typing import List, Literal, Optional
 
 from coreason_scribe.models import DraftSection
@@ -44,6 +45,7 @@ class _InspectorVisitor(ast.NodeVisitor):
         self.module_name = module_name
         self.sections: List[DraftSection] = []
         self.current_class: Optional[str] = None
+        self.req_pattern = re.compile(r"^REQ-\d+$")
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         old_class = self.current_class
@@ -66,6 +68,36 @@ class _InspectorVisitor(ast.NodeVisitor):
         # Continue visiting children (e.g. nested functions)
         self.generic_visit(node)
 
+    def _extract_requirements(self, node: ast.AST) -> List[str]:
+        requirements: List[str] = []
+        # Safe access to decorator_list (only present on FunctionDef/ClassDef)
+        decorator_list = getattr(node, "decorator_list", [])
+
+        for decorator in decorator_list:
+            # Handle @trace("REQ-001")
+            if isinstance(decorator, ast.Call):
+                func = decorator.func
+                is_trace = False
+
+                if isinstance(func, ast.Name) and func.id == "trace":
+                    is_trace = True
+                elif isinstance(func, ast.Attribute) and func.attr == "trace":
+                    is_trace = True
+
+                if is_trace:
+                    for arg in decorator.args:
+                        # Only accept string constants
+                        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                            req_id = arg.value
+                            if self.req_pattern.match(req_id):
+                                requirements.append(req_id)
+                            else:
+                                logger.warning(f"Invalid Requirement ID format found: {req_id}. Expected 'REQ-\\d+'.")
+                        # Explicitly ignore other types (non-strings) or non-constant nodes
+                        # (e.g., variables passed to @trace are not supported by static analysis)
+
+        return requirements
+
     def _process_node(self, node: ast.AST, name: str) -> None:
         docstring = ast.get_docstring(node)  # type: ignore
         if docstring:
@@ -82,6 +114,8 @@ class _InspectorVisitor(ast.NodeVisitor):
 
         section_id = f"{self.module_name}.{name}"
 
+        linked_reqs = self._extract_requirements(node)
+
         # In a real implementation, we would call coreason-arbitrage here.
         # Since we are falling back to docstrings (which are written by humans),
         # we mark the author as HUMAN.
@@ -93,6 +127,7 @@ class _InspectorVisitor(ast.NodeVisitor):
                 content=content,
                 author=author_type,
                 is_modified=False,
+                linked_requirements=linked_reqs,
                 linked_code_hash=code_hash,
             )
         )

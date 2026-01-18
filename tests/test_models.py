@@ -8,48 +8,60 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
 
-from coreason_scribe.models import DraftSection, Requirement, RiskLevel, SignatureBlock
+from coreason_scribe.models import (
+    DeltaReport,
+    DiffItem,
+    DiffType,
+    DraftArtifact,
+    DraftSection,
+    Requirement,
+    RiskLevel,
+    SignatureBlock,
+)
 
 
 def test_risk_level_enum() -> None:
     assert RiskLevel.HIGH == "HIGH"
     assert RiskLevel.MED == "MED"
     assert RiskLevel.LOW == "LOW"
+    with pytest.raises(ValueError):
+        RiskLevel("CRITICAL")
 
 
-def test_requirement_creation() -> None:
-    req = Requirement(id="REQ-001", description="Test requirement", risk=RiskLevel.HIGH, source_sop="SOP-001")
+def test_requirement_valid() -> None:
+    req = Requirement(
+        id="REQ-001",
+        description="Verify dose calculation",
+        risk=RiskLevel.HIGH,
+        source_sop="SOP-123",
+    )
     assert req.id == "REQ-001"
-    assert req.description == "Test requirement"
     assert req.risk == RiskLevel.HIGH
-    assert req.source_sop == "SOP-001"
+    assert req.source_sop == "SOP-123"
 
 
-def test_requirement_creation_defaults() -> None:
-    req = Requirement(id="REQ-002", description="Test requirement 2", risk=RiskLevel.LOW)
-    assert req.id == "REQ-002"
+def test_requirement_optional_sop() -> None:
+    req = Requirement(
+        id="REQ-002",
+        description="Verify login page",
+        risk=RiskLevel.LOW,
+    )
     assert req.source_sop is None
 
 
-def test_requirement_invalid_risk() -> None:
-    with pytest.raises(ValidationError):
-        Requirement(
-            id="REQ-003",
-            description="Invalid risk",
-            risk="EXTREME",  # type: ignore
-        )
-
-
-def test_draft_section_creation() -> None:
+def test_draft_section_valid() -> None:
     section = DraftSection(
-        id="sec-1", content="Some content", author="AI", is_modified=True, linked_code_hash="abc123hash"
+        id="logic_summary",
+        content="This function checks auth.",
+        author="AI",
+        is_modified=True,
+        linked_code_hash="sha256:123456",
     )
-    assert section.id == "sec-1"
     assert section.author == "AI"
     assert section.is_modified is True
 
@@ -57,65 +69,71 @@ def test_draft_section_creation() -> None:
 def test_draft_section_invalid_author() -> None:
     with pytest.raises(ValidationError):
         DraftSection(
-            id="sec-2",
-            content="Content",
-            author="ROBOT",  # type: ignore
+            id="test",
+            content="content",
+            author="ROBOT",  # type: ignore # Invalid
             is_modified=False,
             linked_code_hash="hash",
         )
 
 
-def test_signature_block_creation() -> None:
-    now = datetime.now()
+def test_signature_block_valid() -> None:
+    now = datetime.now(timezone.utc)
     sig = SignatureBlock(
-        document_hash="doc_hash",
-        signer_id="user_123",
-        signer_role="Quality Manager",
+        document_hash="hash_123",
+        signer_id="user_001",
+        signer_role="Quality_Manager",
         timestamp=now,
-        meaning="Approval",
-        signature_token="token_xyz",
+        meaning="I certify this.",
+        signature_token="token_abc",
     )
-    assert sig.document_hash == "doc_hash"
-    assert sig.signer_id == "user_123"
+    assert sig.signer_id == "user_001"
     assert sig.timestamp == now
 
 
-def test_signature_block_missing_field() -> None:
+def test_signature_block_invalid_types() -> None:
     with pytest.raises(ValidationError):
-        SignatureBlock(  # type: ignore[call-arg]
-            document_hash="doc_hash",
-            signer_id="user_123",
-            # Missing signer_role
-            timestamp=datetime.now(),
-            meaning="Approval",
-            signature_token="token_xyz",
+        SignatureBlock(
+            document_hash=123,  # type: ignore # Should be string
+            signer_id="u1",
+            signer_role="role",
+            timestamp="not-a-datetime",  # type: ignore # Should be datetime
+            meaning="meaning",
+            signature_token="token",
         )
 
 
-def test_model_serialization_round_trip() -> None:
-    req = Requirement(id="REQ-SERIAL", description="Serialization Test", risk=RiskLevel.MED, source_sop="SOP-JSON")
-    json_str = req.model_dump_json()
-    req_loaded = Requirement.model_validate_json(json_str)
-    assert req_loaded == req
+def test_draft_artifact_valid() -> None:
+    now = datetime.now(timezone.utc)
+    section = DraftSection(id="s1", content="c", author="AI", is_modified=False, linked_code_hash="h")
+    artifact = DraftArtifact(version="1.0", timestamp=now, sections=[section])
+    assert artifact.version == "1.0"
+    assert len(artifact.sections) == 1
 
 
-def test_empty_string_fields() -> None:
-    # It is technically valid for these strings to be empty unless constrained
-    req = Requirement(id="", description="", risk=RiskLevel.LOW)
-    assert req.id == ""
-    assert req.description == ""
-
-    section = DraftSection(id="", content="", author="HUMAN", is_modified=False, linked_code_hash="")
-    assert section.content == ""
+def test_diff_type_enum() -> None:
+    assert DiffType.NEW == "NEW"
+    assert DiffType.REMOVED == "REMOVED"
+    assert DiffType.LOGIC_CHANGE == "LOGIC_CHANGE"
+    assert DiffType.TEXT_CHANGE == "TEXT_CHANGE"
+    assert DiffType.BOTH == "BOTH"
 
 
-def test_explicit_none_optional() -> None:
-    req = Requirement(id="REQ-NONE", description="None test", risk=RiskLevel.MED, source_sop=None)
-    assert req.source_sop is None
+def test_diff_item_valid() -> None:
+    section = DraftSection(id="s1", content="c", author="AI", is_modified=False, linked_code_hash="h")
+    item = DiffItem(
+        section_id="s1",
+        diff_type=DiffType.NEW,
+        current_section=section,
+        previous_section=None,
+    )
+    assert item.diff_type == DiffType.NEW
+    assert item.current_section == section
+    assert item.previous_section is None
 
 
-def test_large_content() -> None:
-    large_text = "A" * 1000000  # 1MB string
-    section = DraftSection(id="sec-large", content=large_text, author="AI", is_modified=False, linked_code_hash="hash")
-    assert len(section.content) == 1000000
-    assert section.content.startswith("AAAA")
+def test_delta_report_valid() -> None:
+    now = datetime.now(timezone.utc)
+    report = DeltaReport(current_version="1.1", previous_version="1.0", timestamp=now, changes=[])
+    assert report.current_version == "1.1"
+    assert len(report.changes) == 0

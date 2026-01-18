@@ -2,8 +2,8 @@
 
 **The "Compliance Officer in a Box" | Unified GxP Documentation Engine**
 
-[![CI/CD](https://github.com/CoReason-AI/coreason_scribe/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/CoReason-AI/coreason_scribe/actions/workflows/ci-cd.yml)
-[![codecov](https://codecov.io/gh/CoReason-AI/coreason_scribe/graph/badge.svg)](https://codecov.io/gh/CoReason-AI/coreason_scribe)
+[![CI/CD](https://github.com/CoReason-AI/coreason-scribe/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/CoReason-AI/coreason-scribe/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/CoReason-AI/coreason-scribe/graph/badge.svg)](https://codecov.io/gh/CoReason-AI/coreason-scribe)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)

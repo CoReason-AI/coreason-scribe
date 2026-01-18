@@ -8,17 +8,14 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Generator, List
 from unittest.mock import patch
 
 import pytest
 
 from coreason_scribe.main import main
 from coreason_scribe.models import (
-    AssayReport,
     AssayResult,
     Requirement,
     RiskLevel,
@@ -26,34 +23,7 @@ from coreason_scribe.models import (
 )
 
 
-@contextmanager
-def mock_traceability_context(
-    tmp_path: Path, requirements: List[Requirement], assay_results: List[AssayResult]
-) -> Generator[tuple[Path, Path], None, None]:
-    """
-    Context manager that creates dummy files and patches the TraceabilityMatrixBuilder
-    to return the provided requirements and results when loaded.
-    """
-    agent_yaml = tmp_path / "agent.yaml"
-    assay_report_path = tmp_path / "report.json"
-    agent_yaml.touch()
-    assay_report_path.touch()
-
-    # Create the report object to return
-    report = AssayReport(
-        id="report-1",
-        timestamp=datetime.now(),
-        results=assay_results,
-    )
-
-    with patch("coreason_scribe.main.TraceabilityMatrixBuilder") as mock_builder_cls:
-        mock_builder = mock_builder_cls.return_value
-        mock_builder.load_requirements.return_value = requirements
-        mock_builder.load_assay_report.return_value = report
-        yield agent_yaml, assay_report_path
-
-
-def test_gate_no_requirements(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_no_requirements(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: No requirements defined. Should PASS."""
     with mock_traceability_context(tmp_path, requirements=[], assay_results=[]) as (yaml_path, report_path):
         with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
@@ -64,7 +34,7 @@ def test_gate_no_requirements(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     assert "FATAL" not in captured.out
 
 
-def test_gate_high_risk_no_tests(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_high_risk_no_tests(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: High Risk Requirement exists, but no tests are present in the report."""
     req = Requirement(id="REQ-001", description="Safety", risk=RiskLevel.HIGH)
     with mock_traceability_context(tmp_path, requirements=[req], assay_results=[]) as (yaml_path, report_path):
@@ -79,7 +49,7 @@ def test_gate_high_risk_no_tests(tmp_path: Path, capsys: pytest.CaptureFixture[s
     assert "REQ-001" in captured.out
 
 
-def test_gate_mixed_risks(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_mixed_risks(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
     """
     Scenario:
     - REQ-HIGH: 100% Coverage (PASS)
@@ -120,7 +90,9 @@ def test_gate_mixed_risks(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     assert "[WARNING] REQ-LOW" in captured.out
 
 
-def test_gate_multiple_critical_gaps(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_multiple_critical_gaps(
+    tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Scenario: Multiple High Risk requirements fail. Report should list all."""
     reqs = [
         Requirement(id="REQ-H1", description="H1", risk=RiskLevel.HIGH),
@@ -149,7 +121,7 @@ def test_gate_multiple_critical_gaps(tmp_path: Path, capsys: pytest.CaptureFixtu
     assert "FAILED: REQ-H2" in captured.out
 
 
-def test_gate_boundary_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_boundary_coverage(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: High Risk with 99.99% coverage. Should FAIL."""
     req = Requirement(id="REQ-H1", description="H1", risk=RiskLevel.HIGH)
     results = [
@@ -172,7 +144,7 @@ def test_gate_boundary_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert "CRITICAL_GAP" in captured.out
 
 
-def test_gate_orphaned_tests(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_orphaned_tests(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Tests link to a requirement that does not exist in agent.yaml. Should be ignored."""
     req = Requirement(id="REQ-001", description="Real", risk=RiskLevel.HIGH)
     results = [

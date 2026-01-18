@@ -28,6 +28,12 @@ from coreason_scribe.pdf import PDFGenerator
 from coreason_scribe.utils.logger import logger
 
 
+class ComplianceGateFailure(Exception):
+    """Raised when critical compliance gaps are detected."""
+
+    pass
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="CoReason Scribe - GxP Documentation Engine")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -54,14 +60,21 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "draft":
-        run_draft(args.source, args.output, args.version, args.agent_yaml, args.assay_report)
-    elif args.command == "diff":
-        run_diff(args.current, args.previous)
-    elif args.command == "check":
-        run_check(args.agent_yaml, args.assay_report)
-    else:
-        parser.print_help()
+    try:
+        if args.command == "draft":
+            run_draft(args.source, args.output, args.version, args.agent_yaml, args.assay_report)
+        elif args.command == "diff":
+            run_diff(args.current, args.previous)
+        elif args.command == "check":
+            run_check(args.agent_yaml, args.assay_report)
+        else:
+            parser.print_help()
+    except ComplianceGateFailure:
+        logger.error("Build failed due to Critical Gaps in compliance.")
+        sys.exit(1)
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        sys.exit(1)
 
 
 def run_draft(
@@ -206,8 +219,7 @@ def run_check(agent_yaml: Path, assay_report: Path) -> None:
         requirements = builder.load_requirements(agent_yaml)
         report = builder.load_assay_report(assay_report)
     except Exception as e:
-        logger.error(f"Failed to load input files: {e}")
-        sys.exit(1)
+        raise Exception(f"Failed to load input files: {e}") from e
 
     compliance_engine = ComplianceEngine()
     statuses = compliance_engine.evaluate_compliance(requirements, report)
@@ -224,7 +236,6 @@ def run_check(agent_yaml: Path, assay_report: Path) -> None:
 
     if critical_gaps:
         print(f"\nFATAL: {len(critical_gaps)} Critical Gaps detected.")
-        logger.error("Build failed due to Critical Gaps in compliance.")
-        sys.exit(1)
+        raise ComplianceGateFailure("Critical Gaps detected")
     else:
         print("\nSUCCESS: All critical requirements passed.")

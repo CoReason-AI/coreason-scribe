@@ -18,7 +18,13 @@ import pytest
 from git import InvalidGitRepositoryError
 
 from coreason_scribe.main import main, run_diff, run_draft
-from coreason_scribe.models import DraftArtifact, Requirement, RiskLevel
+from coreason_scribe.models import (
+    AssayResult,
+    DraftArtifact,
+    Requirement,
+    RiskLevel,
+    TestStatus,
+)
 
 
 @pytest.fixture
@@ -270,32 +276,30 @@ def test_diff_file_not_found() -> None:
         run_diff(Path("nonexistent1"), Path("nonexistent2"))
 
 
-# --- New Check (Gate) Tests ---
+# --- New Check (Gate) Tests (Refactored to use fixture where possible) ---
 
 
-def test_check_passes(tmp_path: Path, mock_matrix_builder: MagicMock, capsys: pytest.CaptureFixture[str]) -> None:
-    agent_yaml = tmp_path / "agent.yaml"
-    assay_report = tmp_path / "report.json"
-    agent_yaml.touch()
-    assay_report.touch()
-
-    # Mock behavior: 1 High Risk Req, 100% coverage
+def test_check_passes(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
+    """Refactored to use the shared mock_traceability_context fixture."""
     req = Requirement(id="REQ-001", description="Safety", risk=RiskLevel.HIGH)
-    mock_matrix_builder.return_value.load_requirements.return_value = [req]
-    mock_matrix_builder.return_value.load_assay_report.return_value = MagicMock()
+    # We must patch ComplianceEngine return value to PASS, OR use real ComplianceEngine?
+    # The fixture mocks MatrixBuilder. MatrixBuilder returns Req and Report.
+    # run_check instantiates ComplianceEngine() real object.
+    # The real ComplianceEngine logic will pass if coverage >= 100.
+    # So if we provide an AssayResult with 100% coverage, we don't need to patch ComplianceEngine!
+    # This is a better integration test anyway.
 
-    # We need to mock ComplianceEngine used inside run_check.
-    # But run_check instantiates ComplianceEngine directly.
-    # We can rely on matrix.ComplianceEngine logic or mock it.
-    # Let's mock evaluate_compliance return value via patching ComplianceEngine.
-    with patch("coreason_scribe.main.ComplianceEngine") as MockEngine:
-        from coreason_scribe.matrix import ComplianceStatus
+    # 100% Coverage Result
+    result = AssayResult(
+        test_id="T1",
+        status=TestStatus.PASS,
+        coverage=100.0,
+        linked_requirements=["REQ-001"],
+        timestamp=datetime.now(),
+    )
 
-        MockEngine.return_value.evaluate_compliance.return_value = {"REQ-001": ComplianceStatus.PASS}
-
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]
-        ):
+    with mock_traceability_context(tmp_path, requirements=[req], assay_results=[result]) as (yaml_path, report_path):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             main()
 
     captured = capsys.readouterr()
@@ -303,25 +307,20 @@ def test_check_passes(tmp_path: Path, mock_matrix_builder: MagicMock, capsys: py
     assert "[PASS] REQ-001" in captured.out
 
 
-def test_check_fails_critical_gap(
-    tmp_path: Path, mock_matrix_builder: MagicMock, capsys: pytest.CaptureFixture[str]
-) -> None:
-    agent_yaml = tmp_path / "agent.yaml"
-    assay_report = tmp_path / "report.json"
-    agent_yaml.touch()
-    assay_report.touch()
-
+def test_check_fails_critical_gap(tmp_path: Path, mock_traceability_context, capsys: pytest.CaptureFixture[str]) -> None:
+    """Refactored to use shared fixture + real ComplianceEngine logic."""
     req = Requirement(id="REQ-001", description="Safety", risk=RiskLevel.HIGH)
-    mock_matrix_builder.return_value.load_requirements.return_value = [req]
+    # 50% Coverage Result (Critical Gap)
+    result = AssayResult(
+        test_id="T1",
+        status=TestStatus.PASS,
+        coverage=50.0,
+        linked_requirements=["REQ-001"],
+        timestamp=datetime.now(),
+    )
 
-    with patch("coreason_scribe.main.ComplianceEngine") as MockEngine:
-        from coreason_scribe.matrix import ComplianceStatus
-
-        MockEngine.return_value.evaluate_compliance.return_value = {"REQ-001": ComplianceStatus.CRITICAL_GAP}
-
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(agent_yaml), "--assay-report", str(assay_report)]
-        ):
+    with mock_traceability_context(tmp_path, requirements=[req], assay_results=[result]) as (yaml_path, report_path):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             with pytest.raises(SystemExit) as e:
                 main()
             assert e.value.code == 1

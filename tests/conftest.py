@@ -9,7 +9,15 @@
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
 import sys
-from unittest.mock import MagicMock
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import Generator, List
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from coreason_scribe.models import AssayReport, AssayResult, Requirement
 
 # Mock weasyprint before any tests are collected or imported.
 # This prevents OSError when system libraries (pango/cairo) are missing.
@@ -20,3 +28,35 @@ if "weasyprint" not in sys.modules:
     # We need to ensure HTML is available on the mock
     mock_weasyprint.HTML = MagicMock()
     sys.modules["weasyprint"] = mock_weasyprint
+
+
+@pytest.fixture
+def mock_traceability_context():
+    """
+    Returns a context manager that mocks the TraceabilityMatrixBuilder
+    to return specific requirements and assay results.
+    """
+
+    @contextmanager
+    def _context(
+        tmp_path: Path, requirements: List[Requirement], assay_results: List[AssayResult]
+    ) -> Generator[tuple[Path, Path], None, None]:
+        agent_yaml = tmp_path / "agent.yaml"
+        assay_report_path = tmp_path / "report.json"
+        agent_yaml.touch()
+        assay_report_path.touch()
+
+        # Create the report object to return
+        report = AssayReport(
+            id="report-1",
+            timestamp=datetime.now(),
+            results=assay_results,
+        )
+
+        with patch("coreason_scribe.main.TraceabilityMatrixBuilder") as mock_builder_cls:
+            mock_builder = mock_builder_cls.return_value
+            mock_builder.load_requirements.return_value = requirements
+            mock_builder.load_assay_report.return_value = report
+            yield agent_yaml, assay_report_path
+
+    return _context

@@ -56,9 +56,7 @@ def mock_traceability_context(
 def test_gate_no_requirements(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: No requirements defined. Should PASS."""
     with mock_traceability_context(tmp_path, requirements=[], assay_results=[]) as (yaml_path, report_path):
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]
-        ):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             main()
 
     captured = capsys.readouterr()
@@ -70,9 +68,7 @@ def test_gate_high_risk_no_tests(tmp_path: Path, capsys: pytest.CaptureFixture[s
     """Scenario: High Risk Requirement exists, but no tests are present in the report."""
     req = Requirement(id="REQ-001", description="Safety", risk=RiskLevel.HIGH)
     with mock_traceability_context(tmp_path, requirements=[req], assay_results=[]) as (yaml_path, report_path):
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]
-        ):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             with pytest.raises(SystemExit) as e:
                 main()
             assert e.value.code == 1
@@ -114,9 +110,7 @@ def test_gate_mixed_risks(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     ]
 
     with mock_traceability_context(tmp_path, requirements=reqs, assay_results=results) as (yaml_path, report_path):
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]
-        ):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             main()
 
     captured = capsys.readouterr()
@@ -144,9 +138,7 @@ def test_gate_multiple_critical_gaps(tmp_path: Path, capsys: pytest.CaptureFixtu
     ]
 
     with mock_traceability_context(tmp_path, requirements=reqs, assay_results=results) as (yaml_path, report_path):
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]
-        ):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             with pytest.raises(SystemExit) as e:
                 main()
             assert e.value.code == 1
@@ -171,9 +163,7 @@ def test_gate_boundary_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[st
     ]
 
     with mock_traceability_context(tmp_path, requirements=[req], assay_results=results) as (yaml_path, report_path):
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]
-        ):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             with pytest.raises(SystemExit) as e:
                 main()
             assert e.value.code == 1
@@ -205,9 +195,7 @@ def test_gate_orphaned_tests(tmp_path: Path, capsys: pytest.CaptureFixture[str])
     ]
 
     with mock_traceability_context(tmp_path, requirements=[req], assay_results=results) as (yaml_path, report_path):
-        with patch(
-            "sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]
-        ):
+        with patch("sys.argv", ["scribe", "check", "--agent-yaml", str(yaml_path), "--assay-report", str(report_path)]):
             main()
 
     captured = capsys.readouterr()

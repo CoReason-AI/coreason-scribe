@@ -9,25 +9,27 @@
 # Source Code: https://github.com/CoReason-AI/coreason_scribe
 
 import sys
-from contextlib import AbstractContextManager, contextmanager
-from datetime import datetime
-from pathlib import Path
-from typing import Callable, Generator, List, Tuple
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from coreason_scribe.models import AssayReport, AssayResult, Requirement
+from unittest.mock import MagicMock
 
 # Mock weasyprint before any tests are collected or imported.
 # This prevents OSError when system libraries (pango/cairo) are missing.
-# Note: We do this at the top level to ensure it runs before any test modules
-# (which might import weasyprint) are imported.
+# Note: We do this at the very top to ensure it runs before any imports
+# from coreason_scribe, which might transitively import weasyprint.
 if "weasyprint" not in sys.modules:
     mock_weasyprint = MagicMock()
     # We need to ensure HTML is available on the mock
     mock_weasyprint.HTML = MagicMock()
     sys.modules["weasyprint"] = mock_weasyprint
+
+from contextlib import AbstractContextManager, contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import Callable, Generator, List, Tuple
+from unittest.mock import patch
+
+import pytest
+
+from coreason_scribe.models import AssayReport, AssayResult, Requirement
 
 
 @pytest.fixture

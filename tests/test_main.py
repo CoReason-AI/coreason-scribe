@@ -18,8 +18,6 @@ import pytest
 from git import InvalidGitRepositoryError
 
 from coreason_scribe.main import ScribeError, main, run_diff, run_draft
-from typing import Any, Callable
-
 from coreason_scribe.models import (
     AssayResult,
     DraftArtifact,
@@ -411,9 +409,7 @@ def test_check_invalid_files(tmp_path: Path, mock_matrix_builder: MagicMock) -> 
         assert main() == 1
 
 
-def test_check_unexpected_error(
-    tmp_path: Path, mock_traceability_context: Callable[..., Any]
-) -> None:
+def test_check_unexpected_error(tmp_path: Path, mock_traceability_context: Callable[..., Any]) -> None:
     """Test handling of unexpected exceptions in main()."""
     with mock_traceability_context(tmp_path, requirements=[], assay_results=[]) as (yaml_path, report_path):
         with patch("coreason_scribe.main.ComplianceEngine") as MockEngine:

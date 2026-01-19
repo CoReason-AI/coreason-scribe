@@ -10,32 +10,12 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from coreason_scribe.models import DocumentState, DraftArtifact, DraftSection, SignatureBlock
 from coreason_scribe.pdf import PDFGenerator
-
-
-@pytest.fixture
-def mock_html_class() -> Generator[MagicMock, None, None]:
-    """Mock the WeasyPrint HTML class to avoid needing system dependencies."""
-    with patch("coreason_scribe.pdf.HTML") as mock:
-        # The mock instance returned by HTML(...)
-        mock_instance = mock.return_value
-
-        # When write_pdf is called, we just create the file to satisfy tests
-        def side_effect(target: Path | str) -> None:
-            if isinstance(target, str):
-                target = Path(target)
-            # Create a fake PDF file
-            with open(target, "wb") as f:
-                f.write(b"%PDF-1.4 mock content")
-
-        mock_instance.write_pdf.side_effect = side_effect
-        yield mock
 
 
 @pytest.fixture

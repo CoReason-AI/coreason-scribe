@@ -61,3 +61,24 @@ def mock_traceability_context() -> Callable[
             yield agent_yaml, assay_report_path
 
     return _context
+
+
+@pytest.fixture
+def mock_html_class() -> Generator[MagicMock, None, None]:
+    """Mock the WeasyPrint HTML class to avoid needing system dependencies."""
+    # Note: We are patching 'coreason_scribe.pdf.HTML' because that's where it is imported.
+    # If the implementation changes imports, this path might need update.
+    with patch("coreason_scribe.pdf.HTML") as mock:
+        # The mock instance returned by HTML(...)
+        mock_instance = mock.return_value
+
+        # When write_pdf is called, we just create the file to satisfy tests
+        def side_effect(target: Path | str) -> None:
+            if isinstance(target, str):
+                target = Path(target)
+            # Create a fake PDF file
+            with open(target, "wb") as f:
+                f.write(b"%PDF-1.4 mock content")
+
+        mock_instance.write_pdf.side_effect = side_effect
+        yield mock

@@ -6,6 +6,11 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- Watermark Logic -->
+    {% if artifact.status.value != 'SIGNED' %}
+    <div class="watermark">DRAFT</div>
+    {% endif %}
+
     <header>
         <div class="header-left">CoReason Scribe</div>
         <div class="header-right">Version: {{ artifact.version }}</div>
@@ -48,5 +53,33 @@
         </div>
         {% endfor %}
     </main>
+
+    <!-- Signature Page Logic -->
+    {% if artifact.signature %}
+    <div class="signature-page">
+        <h1>Approval Certificate</h1>
+        <div class="signature-block">
+            <div class="signature-row">
+                <div class="signature-label">Document Hash:</div>
+                <div class="signature-value">{{ artifact.signature.document_hash }}</div>
+            </div>
+            <div class="signature-row">
+                <div class="signature-label">Signer ID:</div>
+                <div class="signature-value">{{ artifact.signature.signer_id }}</div>
+            </div>
+            <div class="signature-row">
+                <div class="signature-label">Role:</div>
+                <div class="signature-value">{{ artifact.signature.signer_role }}</div>
+            </div>
+            <div class="signature-row">
+                <div class="signature-label">Timestamp:</div>
+                <div class="signature-value">{{ artifact.signature.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}</div>
+            </div>
+            <div class="signature-statement">
+                "{{ artifact.signature.meaning }}"
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </body>
 </html>

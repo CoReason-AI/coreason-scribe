@@ -10,32 +10,12 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from coreason_scribe.models import DraftArtifact, DraftSection
+from coreason_scribe.models import DocumentState, DraftArtifact, DraftSection, SignatureBlock
 from coreason_scribe.pdf import PDFGenerator
-
-
-@pytest.fixture
-def mock_html_class() -> Generator[MagicMock, None, None]:
-    """Mock the WeasyPrint HTML class to avoid needing system dependencies."""
-    with patch("coreason_scribe.pdf.HTML") as mock:
-        # The mock instance returned by HTML(...)
-        mock_instance = mock.return_value
-
-        # When write_pdf is called, we just create the file to satisfy tests
-        def side_effect(target: Path | str) -> None:
-            if isinstance(target, str):
-                target = Path(target)
-            # Create a fake PDF file
-            with open(target, "wb") as f:
-                f.write(b"%PDF-1.4 mock content")
-
-        mock_instance.write_pdf.side_effect = side_effect
-        yield mock
 
 
 @pytest.fixture
@@ -168,3 +148,63 @@ def test_large_document(tmp_path: Path, mock_html_class: MagicMock) -> None:
     output_path = tmp_path / "large.pdf"
     PDFGenerator().generate_sds(artifact, output_path)
     assert output_path.exists()
+
+
+def test_pdf_draft_watermark(tmp_path: Path, sample_artifact: DraftArtifact, mock_html_class: MagicMock) -> None:
+    """Verify watermark is present for DRAFT status."""
+    sample_artifact.status = DocumentState.DRAFT
+    output_path = tmp_path / "draft.pdf"
+
+    PDFGenerator().generate_sds(sample_artifact, output_path)
+
+    call_args = mock_html_class.call_args
+    html_content = call_args.kwargs.get("string", "")
+
+    assert '<div class="watermark">DRAFT</div>' in html_content
+    assert '<div class="signature-page">' not in html_content
+
+
+def test_pdf_signed_no_watermark(tmp_path: Path, sample_artifact: DraftArtifact, mock_html_class: MagicMock) -> None:
+    """Verify watermark is ABSENT for SIGNED status and signature page is present."""
+    sample_artifact.status = DocumentState.SIGNED
+    sample_artifact.signature = SignatureBlock(
+        document_hash="abc123hash",
+        signer_id="user_001",
+        signer_role="Quality Manager",
+        timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        meaning="I approve.",
+        signature_token="token_xyz",
+    )
+
+    output_path = tmp_path / "signed.pdf"
+
+    PDFGenerator().generate_sds(sample_artifact, output_path)
+
+    call_args = mock_html_class.call_args
+    html_content = call_args.kwargs.get("string", "")
+
+    # Watermark should be gone
+    assert '<div class="watermark">DRAFT</div>' not in html_content
+
+    # Signature page should be present
+    assert '<div class="signature-page">' in html_content
+    assert "Approval Certificate" in html_content
+    assert "user_001" in html_content
+    assert "Quality Manager" in html_content
+    assert "abc123hash" in html_content
+    assert "2025-01-01 12:00:00 UTC" in html_content
+
+
+def test_pdf_pending_review_watermark(
+    tmp_path: Path, sample_artifact: DraftArtifact, mock_html_class: MagicMock
+) -> None:
+    """Verify watermark is present for PENDING_REVIEW status."""
+    sample_artifact.status = DocumentState.PENDING_REVIEW
+    output_path = tmp_path / "pending.pdf"
+
+    PDFGenerator().generate_sds(sample_artifact, output_path)
+
+    call_args = mock_html_class.call_args
+    html_content = call_args.kwargs.get("string", "")
+
+    assert '<div class="watermark">DRAFT</div>' in html_content

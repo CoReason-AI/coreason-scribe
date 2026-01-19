@@ -8,11 +8,11 @@ from coreason_scribe.matrix import TraceabilityMatrixBuilder
 from coreason_scribe.models import (
     AssayReport,
     AssayResult,
+    AssayStatus,
     DraftArtifact,
     DraftSection,
     Requirement,
     RiskLevel,
-    TestStatus,
 )
 
 
@@ -122,7 +122,7 @@ def test_mermaid_special_characters_and_escaping(
         results=[
             AssayResult(
                 test_id="Test Name With Space",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100.0,
                 linked_requirements=["REQ 001"],
                 timestamp=datetime.now(timezone.utc),
@@ -192,21 +192,21 @@ def test_mermaid_complex_many_to_many() -> None:
         results=[
             AssayResult(
                 test_id="T1",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100,
                 linked_requirements=["REQ-A"],
                 timestamp=datetime.now(timezone.utc),
             ),
             AssayResult(
                 test_id="T2",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100,
                 linked_requirements=["REQ-A"],
                 timestamp=datetime.now(timezone.utc),
             ),
             AssayResult(
                 test_id="T3",
-                status=TestStatus.PASS,
+                status=AssayStatus.PASS,
                 coverage=100,
                 linked_requirements=["REQ-B"],
                 timestamp=datetime.now(timezone.utc),

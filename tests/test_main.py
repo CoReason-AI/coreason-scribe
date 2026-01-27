@@ -89,7 +89,21 @@ def test_run_draft_basic(
     output_dir = tmp_path / "output"
 
     with patch(
-        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
+        ],
     ):
         assert main() == 0
 
@@ -134,6 +148,10 @@ def test_run_draft_with_traceability(
             str(output_dir),
             "--version",
             "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
             "--agent-yaml",
             str(agent_yaml),
             "--assay-report",
@@ -147,9 +165,12 @@ def test_run_draft_with_traceability(
 
 
 def test_draft_invalid_git_repo(tmp_path: Path) -> None:
+    from coreason_identity.models import UserContext
+
+    user_context = UserContext(sub="user1", email="user1@example.com", permissions=[])
     with patch("coreason_scribe.main.Repo", side_effect=InvalidGitRepositoryError):
         with pytest.raises(ScribeError):
-            run_draft(tmp_path, tmp_path / "out", "1.0.0")
+            run_draft(tmp_path, tmp_path / "out", "1.0.0", user_context)
 
 
 def test_draft_invalid_git_repo_via_main(tmp_path: Path) -> None:
@@ -158,7 +179,20 @@ def test_draft_invalid_git_repo_via_main(tmp_path: Path) -> None:
         with patch("coreason_scribe.main.logger") as mock_logger:
             with patch(
                 "sys.argv",
-                ["scribe", "draft", "--source", str(tmp_path), "--output", str(tmp_path / "out"), "--version", "1.0.0"],
+                [
+                    "scribe",
+                    "draft",
+                    "--source",
+                    str(tmp_path),
+                    "--output",
+                    str(tmp_path / "out"),
+                    "--version",
+                    "1.0.0",
+                    "--user-id",
+                    "user1",
+                    "--email",
+                    "user1@example.com",
+                ],
             ):
                 assert main() == 1
 
@@ -183,7 +217,21 @@ def test_draft_pdf_generation_failure(
     mock_pdf_generator.return_value.generate_sds.side_effect = Exception("PDF Fail")
 
     with patch(
-        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
+        ],
     ):
         # Should not crash, just log error
         assert main() == 0
@@ -206,7 +254,21 @@ def test_draft_inspection_failure(
     mock_inspector.return_value.inspect_source.side_effect = Exception("Inspection Fail")
 
     with patch(
-        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
+        ],
     ):
         assert main() == 0
 
@@ -244,6 +306,10 @@ def test_draft_traceability_failure(
             str(output_dir),
             "--version",
             "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
             "--agent-yaml",
             str(agent_yaml),
             "--assay-report",
@@ -445,7 +511,21 @@ def test_draft_empty_git_repo_no_commits(
     output_dir = tmp_path / "output"
 
     with patch(
-        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
+        ],
     ):
         assert main() == 0
 
@@ -472,7 +552,21 @@ def test_draft_nested_structure(
 
     # We need the inspector to actually be called with correct module name
     with patch(
-        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
+        ],
     ):
         assert main() == 0
 
@@ -498,7 +592,21 @@ def test_draft_unicode_source(
     output_dir = tmp_path / "output"
 
     with patch(
-        "sys.argv", ["scribe", "draft", "--source", str(source_dir), "--output", str(output_dir), "--version", "1.0.0"]
+        "sys.argv",
+        [
+            "scribe",
+            "draft",
+            "--source",
+            str(source_dir),
+            "--output",
+            str(output_dir),
+            "--version",
+            "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
+        ],
     ):
         assert main() == 0
 
@@ -547,6 +655,10 @@ def test_draft_partial_traceability(
             str(output_dir),
             "--version",
             "1.0.0",
+            "--user-id",
+            "user1",
+            "--email",
+            "user1@example.com",
             "--agent-yaml",
             str(agent_yaml),
             # Missing --assay-report

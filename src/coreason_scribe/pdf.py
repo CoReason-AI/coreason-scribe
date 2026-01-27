@@ -14,6 +14,7 @@ from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 
+from coreason_identity.models import UserContext
 from coreason_scribe.models import DraftArtifact
 from coreason_scribe.utils.logger import logger
 
@@ -33,18 +34,19 @@ class PDFGenerator:
         )
         self.template_dir = template_dir
 
-    def generate_sds(self, artifact: DraftArtifact, output_path: Path) -> None:
+    def generate_sds(self, artifact: DraftArtifact, output_path: Path, user_context: UserContext) -> None:
         """
         Generates the System Design Specification (SDS) PDF.
 
         Args:
             artifact: The draft artifact to render.
             output_path: The path to save the generated PDF.
+            user_context: The user context for attribution.
         """
         logger.info(f"Generating SDS for version {artifact.version}...")
 
         template = self.env.get_template("sds.html")
-        html_content = template.render(artifact=artifact)
+        html_content = template.render(artifact=artifact, user_context=user_context)
 
         # We need to resolve relative paths (like style.css) relative to the template directory
         HTML(string=html_content, base_url=str(self.template_dir)).write_pdf(output_path)

@@ -68,6 +68,7 @@ class SignatureBlock(BaseModel):
     document_hash: str  # SHA-256 of the PDF content
     signer_id: str  # User UUID
     signer_role: str  # "Quality_Manager"
+    authority: List[str]  # User Groups/Permissions
     timestamp: datetime
     meaning: str  # "I certify this design specification."
     signature_token: str  # Cryptographic proof from Identity

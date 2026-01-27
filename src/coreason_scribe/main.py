@@ -16,6 +16,7 @@ from typing import Optional
 
 from git import InvalidGitRepositoryError, Repo
 
+from coreason_identity.models import UserContext
 from coreason_scribe.delta import SemanticDeltaEngine
 from coreason_scribe.inspector import SemanticInspector
 from coreason_scribe.matrix import (
@@ -25,6 +26,7 @@ from coreason_scribe.matrix import (
 )
 from coreason_scribe.models import DraftArtifact
 from coreason_scribe.pdf import PDFGenerator
+from coreason_scribe.signer import MockIdentityProvider, SigningRoom
 from coreason_scribe.utils.logger import logger
 
 
@@ -49,6 +51,9 @@ def main() -> int:
     draft_parser.add_argument("--source", type=Path, default=Path.cwd(), help="Source directory to scan")
     draft_parser.add_argument("--output", type=Path, default=Path.cwd() / "output", help="Output directory")
     draft_parser.add_argument("--version", type=str, required=True, help="Version string for the artifact")
+    draft_parser.add_argument("--user-id", type=str, required=True, help="User ID (sub)")
+    draft_parser.add_argument("--email", type=str, required=True, help="User Email")
+    draft_parser.add_argument("--user-groups", type=str, help="Comma-separated list of user groups/permissions")
     draft_parser.add_argument("--agent-yaml", type=Path, help="Path to agent.yaml (requirements)")
     draft_parser.add_argument("--assay-report", type=Path, help="Path to assay_report.json (test results)")
 
@@ -68,7 +73,16 @@ def main() -> int:
 
     try:
         if args.command == "draft":
-            run_draft(args.source, args.output, args.version, args.agent_yaml, args.assay_report)
+            permissions = args.user_groups.split(",") if args.user_groups else []
+            user_context = UserContext(sub=args.user_id, email=args.email, permissions=permissions)
+            run_draft(
+                args.source,
+                args.output,
+                args.version,
+                user_context,
+                args.agent_yaml,
+                args.assay_report,
+            )
         elif args.command == "diff":
             run_diff(args.current, args.previous)
         elif args.command == "check":
@@ -91,6 +105,7 @@ def run_draft(
     source_dir: Path,
     output_dir: Path,
     version: str,
+    user_context: UserContext,
     agent_yaml: Optional[Path] = None,
     assay_report: Optional[Path] = None,
 ) -> None:
@@ -138,7 +153,7 @@ def run_draft(
             rel_path = file_path.relative_to(source_dir)
             module_name = ".".join(rel_path.with_suffix("").parts)
 
-            sections = inspector.inspect_source(content, module_name)
+            sections = inspector.inspect_source(content, module_name, user_context)
             all_sections.extend(sections)
             logger.debug(f"Processed {file_path}: Found {len(sections)} sections.")
         except Exception as e:
@@ -152,6 +167,11 @@ def run_draft(
         commit_hash=commit_hash,
     )
 
+    # 3.5 Sign Draft (Attribution)
+    identity_provider = MockIdentityProvider()
+    signing_room = SigningRoom(identity_provider)
+    signing_room.sign_draft(artifact, user_context)
+
     # 4. Save Artifact JSON
     json_path = output_dir / "artifact.json"
     with open(json_path, "w") as f:
@@ -162,7 +182,7 @@ def run_draft(
     pdf_path = output_dir / "sds.pdf"
     pdf_gen = PDFGenerator()
     try:
-        pdf_gen.generate_sds(artifact, pdf_path)
+        pdf_gen.generate_sds(artifact, pdf_path, user_context)
         logger.info(f"SDS PDF generated at {pdf_path}")
     except Exception as e:
         logger.error(f"Failed to generate PDF: {e}")

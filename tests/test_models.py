@@ -83,6 +83,7 @@ def test_signature_block_valid() -> None:
         document_hash="hash_123",
         signer_id="user_001",
         signer_role="Quality_Manager",
+        authority=["admin"],
         timestamp=now,
         meaning="I certify this.",
         signature_token="token_abc",
@@ -97,6 +98,7 @@ def test_signature_block_invalid_types() -> None:
             document_hash=123,  # type: ignore # Should be string
             signer_id="u1",
             signer_role="role",
+            authority=["admin"],
             timestamp="not-a-datetime",  # type: ignore # Should be datetime
             meaning="meaning",
             signature_token="token",

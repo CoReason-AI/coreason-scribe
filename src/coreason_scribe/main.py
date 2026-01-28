@@ -14,10 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from git import InvalidGitRepositoryError, Repo
-
 from coreason_identity.models import UserContext
 from coreason_identity.types import SecretStr
+from git import InvalidGitRepositoryError, Repo
+
 from coreason_scribe.delta import SemanticDeltaEngine
 from coreason_scribe.inspector import ScribeInspector, SemanticInspector
 from coreason_scribe.matrix import (

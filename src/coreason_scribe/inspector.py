@@ -12,7 +12,7 @@ import ast
 import hashlib
 import re
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from coreason_identity.models import UserContext
 
@@ -141,7 +141,7 @@ class ScribeInspector:
     Handles identity-aware document inspection.
     """
 
-    def inspect_pdf(self, pdf_path: Path, context: UserContext) -> dict:
+    def inspect_pdf(self, pdf_path: Path, context: UserContext) -> dict[str, Any]:
         """
         Inspects a PDF document's metadata and signatures.
 

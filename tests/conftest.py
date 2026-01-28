@@ -34,7 +34,7 @@ class MockSecretStr:
 
 
 class MockUserContext:
-    def __init__(self, user_id: MockSecretStr, roles=None, metadata=None):
+    def __init__(self, user_id: MockSecretStr, roles: list[str] | None = None, metadata: dict[str, str] | None = None):
         self.user_id = user_id
         self.roles = roles or []
         self.metadata = metadata or {}

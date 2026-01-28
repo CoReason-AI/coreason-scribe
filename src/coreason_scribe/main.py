@@ -14,10 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from coreason_identity.models import UserContext
+from coreason_identity.types import SecretStr
 from git import InvalidGitRepositoryError, Repo
 
 from coreason_scribe.delta import SemanticDeltaEngine
-from coreason_scribe.inspector import SemanticInspector
+from coreason_scribe.inspector import ScribeInspector, SemanticInspector
 from coreason_scribe.matrix import (
     ComplianceEngine,
     ComplianceStatus,
@@ -25,6 +27,7 @@ from coreason_scribe.matrix import (
 )
 from coreason_scribe.models import DraftArtifact
 from coreason_scribe.pdf import PDFGenerator
+from coreason_scribe.signer import ScribeSigner
 from coreason_scribe.utils.logger import logger
 
 
@@ -64,6 +67,18 @@ def main() -> int:
         "--assay-report", type=Path, required=True, help="Path to assay_report.json (test results)"
     )
 
+    # Command: sign
+    sign_parser = subparsers.add_parser("sign", help="Sign a PDF document with identity context")
+    sign_parser.add_argument("pdf_path", type=Path, help="Path to the PDF file")
+
+    # Command: verify
+    verify_parser = subparsers.add_parser("verify", help="Verify a PDF signature")
+    verify_parser.add_argument("pdf_path", type=Path, help="Path to the PDF file")
+
+    # Command: inspect
+    inspect_parser = subparsers.add_parser("inspect", help="Inspect PDF metadata and signatures")
+    inspect_parser.add_argument("pdf_path", type=Path, help="Path to the PDF file")
+
     args = parser.parse_args()
 
     try:
@@ -73,6 +88,12 @@ def main() -> int:
             run_diff(args.current, args.previous)
         elif args.command == "check":
             run_check(args.agent_yaml, args.assay_report)
+        elif args.command == "sign":
+            run_sign(args.pdf_path)
+        elif args.command == "verify":
+            run_verify(args.pdf_path)
+        elif args.command == "inspect":
+            run_inspect(args.pdf_path)
         else:
             parser.print_help()
         return 0
@@ -247,6 +268,51 @@ def run_check(agent_yaml: Path, assay_report: Path) -> None:
         raise ComplianceGateFailure("Critical Gaps detected")
     else:
         print("\nSUCCESS: All critical requirements passed.")
+
+
+def run_sign(pdf_path: Path) -> None:
+    context = UserContext(
+        user_id=SecretStr("cli-user"),
+        roles=["system"],
+        metadata={"source": "cli"},
+    )
+    signer = ScribeSigner()
+    try:
+        signer.sign_pdf(pdf_path, context)
+        logger.info(f"Successfully signed {pdf_path}")
+    except Exception as e:
+        logger.error(f"Failed to sign: {e}")
+        raise ScribeError(str(e)) from e
+
+
+def run_verify(pdf_path: Path) -> None:
+    context = UserContext(
+        user_id=SecretStr("cli-user"),
+        roles=["system"],
+        metadata={"source": "cli"},
+    )
+    signer = ScribeSigner()
+    try:
+        signer.verify_signature(pdf_path, context)
+        logger.info(f"Signature valid for {pdf_path}")
+    except Exception as e:
+        logger.error(f"Verification failed: {e}")
+        raise ScribeError(str(e)) from e
+
+
+def run_inspect(pdf_path: Path) -> None:
+    context = UserContext(
+        user_id=SecretStr("cli-user"),
+        roles=["system"],
+        metadata={"source": "cli"},
+    )
+    inspector = ScribeInspector()
+    try:
+        inspector.inspect_pdf(pdf_path, context)
+        logger.info(f"Inspection complete for {pdf_path}")
+    except Exception as e:
+        logger.error(f"Inspection failed: {e}")
+        raise ScribeError(str(e)) from e
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -12,7 +12,10 @@ import hashlib
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
+
+from coreason_identity.models import UserContext
 
 from coreason_scribe.models import DocumentState, DraftArtifact, SignatureBlock
 from coreason_scribe.utils.logger import logger
@@ -111,3 +114,63 @@ class SigningRoom:
         logger.info(f"Artifact version {artifact.version} signed by {signer_id}.")
 
         return artifact
+
+
+class ScribeSigner:
+    """
+    Handles identity-aware PDF signing operations.
+    """
+
+    def sign_pdf(self, pdf_path: Path, context: UserContext) -> None:
+        """
+        Signs a PDF document using the provided identity context.
+
+        Args:
+            pdf_path: Path to the PDF file.
+            context: The identity context of the signer.
+        """
+        if context is None:
+            raise ValueError("UserContext is required.")
+
+        # Log the cryptographic event with zero-copy on user_id (only via get_secret_value)
+        logger.info(
+            "Executing PDF signing",
+            user_id=context.user_id.get_secret_value(),
+            document=str(pdf_path),
+        )
+
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
+        # Placeholder for actual cryptographic signing logic.
+        # This implementation currently only performs identity validation and logging.
+        # Future work: Integrate with a PDF signing library (e.g., pyhanko) to apply digital signature.
+        pass
+
+    def verify_signature(self, pdf_path: Path, context: UserContext) -> bool:
+        """
+        Verifies the signature of a PDF document.
+
+        Args:
+            pdf_path: Path to the PDF file.
+            context: The identity context of the verifier.
+
+        Returns:
+            True if valid, raises error otherwise.
+        """
+        if context is None:
+            raise ValueError("UserContext is required.")
+
+        logger.info(
+            "Verifying PDF signature",
+            user_id=context.user_id.get_secret_value(),
+            document=str(pdf_path),
+        )
+
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
+        # Placeholder for actual verification logic.
+        # This implementation currently only performs identity validation and logging.
+        # Future work: Integrate with a PDF signing library to verify digital signature.
+        return True

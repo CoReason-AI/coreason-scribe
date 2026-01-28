@@ -18,6 +18,34 @@ mock_weasyprint = MagicMock()
 mock_weasyprint.HTML = MagicMock()
 sys.modules["weasyprint"] = mock_weasyprint
 
+# Mock coreason-identity
+mock_identity = MagicMock()
+
+
+class MockSecretStr:
+    def __init__(self, value: str):
+        self._value = value
+
+    def get_secret_value(self) -> str:
+        return self._value
+
+    def __repr__(self) -> str:
+        return "SecretStr('**********')"
+
+
+class MockUserContext:
+    def __init__(self, user_id: MockSecretStr, roles: list[str] | None = None, metadata: dict[str, str] | None = None):
+        self.user_id = user_id
+        self.roles = roles or []
+        self.metadata = metadata or {}
+
+
+mock_identity.models.UserContext = MockUserContext
+mock_identity.types.SecretStr = MockSecretStr
+sys.modules["coreason_identity"] = mock_identity
+sys.modules["coreason_identity.models"] = mock_identity.models
+sys.modules["coreason_identity.types"] = mock_identity.types
+
 from contextlib import AbstractContextManager, contextmanager  # noqa: E402
 from datetime import datetime  # noqa: E402
 from pathlib import Path  # noqa: E402

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "coreason_scribe"
-version = "0.2.0"
+version = "0.3.0"
 description = "coreason-scribe"
 authors = ["Gowtham A Rao <gowtham.rao@coreason.ai>"]
 license = "Prosperity-3.0"
@@ -16,6 +16,8 @@ weasyprint = "^67.0"
 pyyaml = "^6.0.3"
 types-pyyaml = "^6.0.12.20250915"
 gitpython = "^3.1.46"
+coreason-identity = "^0.1.0"
+anyio = "^4.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
@@ -33,7 +35,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "coreason_scribe"
-version = "0.2.0"
+version = "0.3.0"
 description = "coreason-scribe"
 readme = "README.md"
 requires-python = ">=3.11"

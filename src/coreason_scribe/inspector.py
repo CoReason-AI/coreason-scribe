@@ -11,7 +11,10 @@
 import ast
 import hashlib
 import re
-from typing import List, Literal, Optional
+from pathlib import Path
+from typing import Any, List, Literal, Optional
+
+from coreason_identity.models import UserContext
 
 from coreason_scribe.models import DraftSection
 from coreason_scribe.utils.logger import logger
@@ -131,3 +134,37 @@ class _InspectorVisitor(ast.NodeVisitor):
                 linked_code_hash=code_hash,
             )
         )
+
+
+class ScribeInspector:
+    """
+    Handles identity-aware document inspection.
+    """
+
+    def inspect_pdf(self, pdf_path: Path, context: UserContext) -> dict[str, Any]:
+        """
+        Inspects a PDF document's metadata and signatures.
+
+        Args:
+            pdf_path: Path to the PDF file.
+            context: The identity context of the inspector.
+
+        Returns:
+            A dictionary containing metadata.
+        """
+        if context is None:
+            raise ValueError("UserContext is required.")
+
+        logger.info(
+            "Inspecting document metadata",
+            user_id=context.user_id.get_secret_value(),
+            document=str(pdf_path),
+        )
+
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
+        # Placeholder for actual inspection logic.
+        # This implementation currently only performs identity validation and logging.
+        # Future work: Extract metadata and signatures from the PDF using a library.
+        return {}

@@ -13,20 +13,20 @@ import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, AsyncGenerator, Dict, Optional, Union
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from coreason_scribe.inspector import SemanticInspector
-from coreason_scribe.matrix import ComplianceEngine, ComplianceStatus, TraceabilityMatrixBuilder
+from coreason_scribe.matrix import ComplianceStatus, TraceabilityMatrixBuilder
 from coreason_scribe.models import DraftArtifact
 from coreason_scribe.pdf import PDFGenerator
 from coreason_scribe.utils.logger import logger
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     logger.info("Initializing Scribe Server components...")
     app.state.inspector = SemanticInspector()
@@ -50,7 +50,7 @@ async def create_draft(
     version: Annotated[str, Form()],
     agent_yaml: Annotated[Optional[UploadFile], File()] = None,
     assay_report: Annotated[Optional[UploadFile], File()] = None,
-):
+) -> DraftArtifact:
     logger.info(f"Received draft request for version {version}")
 
     # Initialize DraftArtifact
@@ -74,7 +74,7 @@ async def create_draft(
                 reqs = app.state.matrix_builder.load_requirements(yaml_path)
                 logger.info(f"Validated {len(reqs)} requirements from agent.yaml")
             except Exception as e:
-                raise HTTPException(status_code=422, detail=f"Invalid agent.yaml: {str(e)}")
+                raise HTTPException(status_code=422, detail=f"Invalid agent.yaml: {str(e)}") from e
 
         if assay_report:
             report_path = temp_path / "assay_report.json"
@@ -85,7 +85,7 @@ async def create_draft(
                 report = app.state.matrix_builder.load_assay_report(report_path)
                 logger.info(f"Validated assay report {report.id} with {len(report.results)} results")
             except Exception as e:
-                raise HTTPException(status_code=422, detail=f"Invalid assay_report.json: {str(e)}")
+                raise HTTPException(status_code=422, detail=f"Invalid assay_report.json: {str(e)}") from e
 
         # Generate PDF
         pdf_path = temp_path / "sds.pdf"
@@ -96,16 +96,16 @@ async def create_draft(
             logger.info(f"Generated SDS at {pdf_path}")
         except Exception as e:
             logger.error(f"Failed to generate PDF: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}") from e
 
     return artifact
 
 
-@app.post("/check")
+@app.post("/check", response_model=Dict[str, str])
 async def check_compliance(
     agent_yaml: Annotated[UploadFile, File()],
     assay_report: Annotated[UploadFile, File()],
-):
+) -> Union[Dict[str, str], JSONResponse]:
     logger.info("Received compliance check request")
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -126,13 +126,13 @@ async def check_compliance(
             reqs = app.state.matrix_builder.load_requirements(yaml_path)
             report = app.state.matrix_builder.load_assay_report(report_path)
         except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Invalid input files: {str(e)}")
+            raise HTTPException(status_code=422, detail=f"Invalid input files: {str(e)}") from e
 
         # Evaluate compliance
         try:
             statuses = app.state.matrix_builder.compliance_engine.evaluate_compliance(reqs, report)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Compliance evaluation failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Compliance evaluation failed: {str(e)}") from e
 
         # Check for critical gaps
         has_critical_gap = any(status == ComplianceStatus.CRITICAL_GAP for status in statuses.values())
@@ -144,5 +144,5 @@ async def check_compliance(
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, str]:
     return {"status": "healthy", "version": "0.2.0"}

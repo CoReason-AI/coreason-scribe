@@ -35,3 +35,9 @@ COPY --from=builder /wheels /wheels
 
 # Install the application wheel
 RUN pip install --no-cache-dir /wheels/*.whl
+
+# Expose port 8001
+EXPOSE 8001
+
+# Updated CMD for server mode
+CMD ["uvicorn", "coreason_scribe.server:app", "--host", "0.0.0.0", "--port", "8001"]

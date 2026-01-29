@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List, cast
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -197,3 +198,88 @@ def test_check_invalid_json(client: TestClient, tmp_path: Any) -> None:
 
     assert response.status_code == 422
     assert "Invalid input files" in response.json()["detail"]
+
+
+def test_draft_pdf_generation_failure(client: TestClient) -> None:
+    fastapi_app = cast(FastAPI, client.app)
+    # Mock PDF generator to raise exception
+    fastapi_app.state.pdf_generator.generate_sds = MagicMock(side_effect=Exception("PDF Error"))
+
+    response = client.post("/draft", data={"version": "1.0.0"})
+    assert response.status_code == 500
+    assert "Failed to generate PDF" in response.json()["detail"]
+
+
+def test_draft_pdf_empty_failure(client: TestClient) -> None:
+    fastapi_app = cast(FastAPI, client.app)
+
+    # Mock generation that produces empty file (or doesn't produce one)
+    # The default mock in fixture produces "dummy pdf content".
+    # We override it here to produce nothing.
+    def mock_empty_generate(artifact: Any, output_path: Any) -> None:
+        pass # Do nothing, file remains non-existent
+        # Or create empty file
+        output_path.touch()
+
+    fastapi_app.state.pdf_generator.generate_sds = mock_empty_generate
+
+    response = client.post("/draft", data={"version": "1.0.0"})
+    assert response.status_code == 500
+    assert "PDF file was not created or is empty" in response.json()["detail"]
+
+
+def test_check_compliance_evaluation_failure(client: TestClient, tmp_path: Any) -> None:
+    # Mock compliance engine to raise exception
+    fastapi_app = cast(FastAPI, client.app)
+
+    # We need to mock the evaluate_compliance method
+    # Since matrix_builder is instantiated in lifespan, we access it via state
+    fastapi_app.state.matrix_builder.compliance_engine.evaluate_compliance = MagicMock(
+        side_effect=Exception("Engine Error")
+    )
+
+    agent_yaml = tmp_path / "agent.yaml"
+    agent_yaml.write_text("[]")
+
+    assay_report = tmp_path / "assay_report.json"
+    assay_report.write_text("{}") # Minimal valid JSON for load_assay_report to pass or fail gracefully
+
+    # Note: load_assay_report might fail on empty dict, so let's provide minimal valid structure
+    assay_report.write_text('{"id": "1", "timestamp": "2023-01-01T00:00:00Z", "results": []}')
+
+    with open(agent_yaml, "rb") as f_yaml, open(assay_report, "rb") as f_json:
+        files = {
+            "agent_yaml": ("agent.yaml", f_yaml, "application/yaml"),
+            "assay_report": ("assay_report.json", f_json, "application/json"),
+        }
+        response = client.post("/check", files=files)
+
+    assert response.status_code == 500
+    assert "Compliance evaluation failed" in response.json()["detail"]
+
+
+def test_draft_assay_report_generic_exception(
+    client: TestClient,
+    sample_requirements_content: List[Dict[str, Any]],
+    tmp_path: Any,
+) -> None:
+    # Force generic exception during assay report loading in draft endpoint
+    fastapi_app = cast(FastAPI, client.app)
+    fastapi_app.state.matrix_builder.load_assay_report = MagicMock(side_effect=Exception("Generic Load Error"))
+
+    agent_yaml = tmp_path / "agent.yaml"
+    with open(agent_yaml, "w") as f:
+        yaml.dump(sample_requirements_content, f)
+
+    assay_report = tmp_path / "assay_report.json"
+    assay_report.write_text("{}")
+
+    with open(agent_yaml, "rb") as f_yaml, open(assay_report, "rb") as f_json:
+        files = {
+            "agent_yaml": ("agent.yaml", f_yaml, "application/yaml"),
+            "assay_report": ("assay_report.json", f_json, "application/json"),
+        }
+        response = client.post("/draft", data={"version": "1.0.0"}, files=files)
+
+    assert response.status_code == 422
+    assert "Invalid assay_report.json" in response.json()["detail"]

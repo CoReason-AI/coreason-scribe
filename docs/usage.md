@@ -88,6 +88,50 @@ poetry run python -m coreason_scribe.main check \
 - Exits with status code `0` if all checks pass.
 - Exits with status code `1` if critical gaps (e.g., High Risk requirement with <100% coverage) are found.
 
+### 4. Server Mode (Microservice)
+
+For integration with other services (like `coreason-foundry` or `coreason-publisher`), Scribe can run as a REST API microservice.
+
+**Running the Server:**
+
+Using Poetry:
+```bash
+poetry run uvicorn coreason_scribe.server:app --host 0.0.0.0 --port 8001
+```
+
+Using Docker:
+```bash
+docker run -p 8001:8001 coreason-scribe:latest
+```
+
+**API Endpoints:**
+
+1.  **`POST /draft`**: Generate a draft artifact and PDF.
+    *   **Form Data**: `version` (string).
+    *   **Files**: `agent_yaml` (optional), `assay_report` (optional).
+    *   **Response**: JSON representation of the `DraftArtifact`.
+
+    ```bash
+    curl -X POST "http://localhost:8001/draft" \
+      -F "version=1.0.0" \
+      -F "agent_yaml=@agent.yaml" \
+      -F "assay_report=@assay_report.json"
+    ```
+
+2.  **`POST /check`**: Perform a compliance verification (CI Gate).
+    *   **Files**: `agent_yaml` (required), `assay_report` (required).
+    *   **Response**: JSON dictionary of `{RequirementID: Status}`.
+    *   **Status Codes**: `200 OK` (Success), `422 Unprocessable Entity` (Critical Compliance Failure).
+
+    ```bash
+    curl -X POST "http://localhost:8001/check" \
+      -F "agent_yaml=@agent.yaml" \
+      -F "assay_report=@assay_report.json"
+    ```
+
+3.  **`GET /health`**: Health check.
+    *   **Response**: `{"status": "healthy", "version": "0.4.0"}`
+
 ## Example Configuration Files
 
 ### `agent.yaml`

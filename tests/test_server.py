@@ -1,9 +1,10 @@
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, Generator, List
+from typing import Any, Dict, Generator, List, cast
 
 import pytest
 import yaml
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from coreason_scribe.server import app
@@ -13,18 +14,19 @@ from coreason_scribe.server import app
 def client() -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         # Patch generate_sds to create a dummy file because weasyprint is mocked and doesn't write files
-        original_generate_sds = c.app.state.pdf_generator.generate_sds
+        fastapi_app = cast(FastAPI, c.app)
+        original_generate_sds = fastapi_app.state.pdf_generator.generate_sds
 
         def mock_generate_sds(artifact: Any, output_path: Any) -> None:
             # Simulate PDF generation by creating an empty file
             # But wait, st_size == 0 check will fail if empty.
             output_path.write_text("dummy pdf content")
 
-        c.app.state.pdf_generator.generate_sds = mock_generate_sds
+        fastapi_app.state.pdf_generator.generate_sds = mock_generate_sds
 
         yield c
 
-        c.app.state.pdf_generator.generate_sds = original_generate_sds
+        fastapi_app.state.pdf_generator.generate_sds = original_generate_sds
 
 
 @pytest.fixture

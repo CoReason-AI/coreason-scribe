@@ -64,7 +64,7 @@ def sample_assay_report_content() -> Dict[str, Any]:
 def test_health(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy", "version": "0.2.0"}
+    assert response.json() == {"status": "healthy", "version": "0.4.0"}
 
 
 def test_draft_no_files(client: TestClient) -> None:

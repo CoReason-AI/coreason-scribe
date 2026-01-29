@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="CoReason Scribe API",
-    version="0.2.0",
+    version="0.4.0",
     lifespan=lifespan,
     description="Compliance Officer in a Box - GxP Documentation Microservice",
 )
@@ -145,4 +145,4 @@ async def check_compliance(
 
 @app.get("/health")
 async def health_check() -> Dict[str, str]:
-    return {"status": "healthy", "version": "0.2.0"}
+    return {"status": "healthy", "version": "0.4.0"}

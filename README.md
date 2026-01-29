@@ -16,6 +16,8 @@
 
 By treating **Documentation as Code**, `coreason-scribe` parses your agent's logic, uses AI to generate human-readable summaries (System Design Specifications), enforces Risk-Based Traceability (Requirements ↔ Tests), and facilitates a rigorous **"Draft-Review-Sign"** workflow. It ensures that no release is published without a cryptographically signed artifact proving it meets all requirements.
 
+`coreason-scribe` can operate as a local CLI tool for developers or as a **Compliance Microservice** (FastAPI) integrated into CI/CD pipelines (e.g., `coreason-publisher`) and review platforms (`coreason-foundry`).
+
 ## Core Philosophy: "Code is Truth. AI Drafts. Humans Ratify. Diffs Reveal Risk."
 
 1.  **AI as the Drafter:** Scans Python AST and generates plain-English business logic summaries.
@@ -57,8 +59,19 @@ poetry run python -m coreason_scribe.main check \
 
 For detailed instructions, see the [Usage Guide](docs/usage.md).
 
+### Server Mode (Microservice)
+
+Start the REST API server:
+
+```bash
+poetry run uvicorn coreason_scribe.server:app --port 8001
+# OR
+docker run -p 8001:8001 coreason-scribe:latest
+```
+
 ## Documentation
 
+- [Requirements](docs/requirements.md)
 - [Usage Guide](docs/usage.md)
 - [Product Requirements Document](docs/product_requirements.md)
 

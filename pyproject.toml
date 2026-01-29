@@ -19,6 +19,9 @@ gitpython = "^3.1.46"
 coreason-identity = "^0.4.2"
 anyio = "^4.12.1"
 httpx = "^0.28.1"
+fastapi = "^0.115.0"
+uvicorn = "^0.34.0"
+python-multipart = "^0.0.20"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"

@@ -217,7 +217,7 @@ def test_draft_pdf_empty_failure(client: TestClient) -> None:
     # The default mock in fixture produces "dummy pdf content".
     # We override it here to produce nothing.
     def mock_empty_generate(artifact: Any, output_path: Any) -> None:
-        pass # Do nothing, file remains non-existent
+        pass  # Do nothing, file remains non-existent
         # Or create empty file
         output_path.touch()
 
@@ -242,7 +242,7 @@ def test_check_compliance_evaluation_failure(client: TestClient, tmp_path: Any) 
     agent_yaml.write_text("[]")
 
     assay_report = tmp_path / "assay_report.json"
-    assay_report.write_text("{}") # Minimal valid JSON for load_assay_report to pass or fail gracefully
+    assay_report.write_text("{}")  # Minimal valid JSON for load_assay_report to pass or fail gracefully
 
     # Note: load_assay_report might fail on empty dict, so let's provide minimal valid structure
     assay_report.write_text('{"id": "1", "timestamp": "2023-01-01T00:00:00Z", "results": []}')

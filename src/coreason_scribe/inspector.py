@@ -48,7 +48,7 @@ class _InspectorVisitor(ast.NodeVisitor):
         self.module_name = module_name
         self.sections: List[DraftSection] = []
         self.current_class: Optional[str] = None
-        self.req_pattern = re.compile(r"^REQ-\d+$")
+        self.req_pattern = re.compile(r"^REQ-[\w-]+$")
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         old_class = self.current_class

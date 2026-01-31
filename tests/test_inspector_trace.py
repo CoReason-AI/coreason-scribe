@@ -76,9 +76,9 @@ def simple_function():
 
 
 def test_inspector_ignores_invalid_requirement_ids() -> None:
-    """Test that invalid requirement IDs (not matching REQ-\\d+) are ignored and logged."""
+    """Test that invalid requirement IDs (not matching REQ-[\\w-]+) are ignored and logged."""
     source_code = """
-@trace("INVALID-01", "REQ-001", "REQ-BAD", "REQ-99")
+@trace("INVALID-01", "REQ-001", "REQ-!BAD", "REQ-99")
 def bad_reqs():
     pass
     """
@@ -98,7 +98,7 @@ def bad_reqs():
         # Verify logs
         log_text = "".join([str(m) for m in messages])
         assert "Invalid Requirement ID format found: INVALID-01" in log_text
-        assert "Invalid Requirement ID format found: REQ-BAD" in log_text
+        assert "Invalid Requirement ID format found: REQ-!BAD" in log_text
     finally:
         logger.remove(sink_id)
 
